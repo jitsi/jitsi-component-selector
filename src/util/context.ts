@@ -29,19 +29,6 @@ export class Context {
     }
 }
 
-declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
-  namespace Express {
-
-      /**
-       * Overrides Express Request object to attach the custom request Context
-       */
-    interface Request {
-      context: Context;
-    }
-  }
-}
-
 /**
  * Generate new request context
  * @param contextId id of the context
