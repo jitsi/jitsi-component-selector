@@ -1,13 +1,14 @@
-import express from "express";
-import http from "http";
-import logger from "./util/logger";
-import config from "./config/config";
-import SessionsHandler from "./handlers/sessions_handler";
-import RestServer from "./rest_server";
-import SessionsService from "./service/sessions_service";
+import express from 'express';
+import http from 'http';
 
-logger.info("Starting up jitsi-component-selector service with config", {
-  config,
+import config from './config/config';
+import SessionsHandler from './handlers/sessions_handler';
+import RestServer from './rest_server';
+import SessionsService from './service/sessions_service';
+import logger from './util/logger';
+
+logger.info('Starting up jitsi-component-selector service with config', {
+    config
 });
 
 // configure the server
@@ -16,11 +17,11 @@ const httpServer = http.createServer(app);
 
 const sessionsService = new SessionsService();
 const restServer = new RestServer({
-  app: app,
-  protectedApi: config.ProtectedApi,
-  sessionsHandler: new SessionsHandler({
-    sessionsService: sessionsService,
-  }),
+    app,
+    protectedApi: config.ProtectedApi,
+    sessionsHandler: new SessionsHandler({
+        sessionsService
+    })
 });
 
 restServer.init();
@@ -28,11 +29,11 @@ restServer.init();
 // start server
 
 if (config.ProtectedApi) {
-  logger.debug("Starting in protected api mode");
+    logger.debug('Starting in protected api mode');
 } else {
-  logger.warn("Starting in unprotected api mode");
+    logger.warn('Starting in unprotected api mode');
 }
 
 httpServer.listen(config.HTTPServerPort, () => {
-  logger.info(`Running http server on port ${config.HTTPServerPort}`);
+    logger.info(`Running http server on port ${config.HTTPServerPort}`);
 });

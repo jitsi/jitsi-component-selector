@@ -12,9 +12,10 @@ module.exports = {
         '@typescript-eslint',
     ],
     extends: [
-        'eslint:recommended',
-        'plugin:@typescript-eslint/recommended',
-        "prettier",
-        "plugin:prettier/recommended",
+        '@jitsi/eslint-config',
+        '@jitsi/eslint-config/typescript'
     ],
+    "globals": {
+        "NodeJS": true
+    },
 };
