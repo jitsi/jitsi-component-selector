@@ -1,14 +1,13 @@
+import * as jitsiLogger from '@jitsi/jitsi-meet-logger';
 import { Request, Response, NextFunction } from 'express';
 import shortid from 'shortid';
-import { Logger } from 'winston';
 
-import logger from './logger';
 
 /**
  * The request context, used for injecting request id into logs
  */
 export class Context {
-    public logger: Logger;
+    public logger: jitsiLogger.Logger;
     public start: number;
     public requestId: string;
 
@@ -19,7 +18,7 @@ export class Context {
      * @param requestId the request identifier
      */
     constructor(
-            reqLogger: Logger,
+            reqLogger: jitsiLogger.Logger,
             start: number,
             requestId: string
     ) {
@@ -40,9 +39,7 @@ export function generateNewContext(contextId?: string): Context {
     if (!resultedContextId) {
         resultedContextId = shortid.generate();
     }
-    const ctxLogger = logger.child({
-        id: resultedContextId
-    });
+    const ctxLogger = jitsiLogger.getLogger(resultedContextId, undefined, {})
 
     return new Context(ctxLogger, start, resultedContextId);
 }
@@ -65,12 +62,7 @@ export function injectContext(
     const requestIdHeader = req.header('X-Request-Id');
     const start = Date.now();
     const reqId = requestIdHeader ? requestIdHeader : shortid.generate();
-    const reqLogger = logger.child({
-        rid: reqId,
-        ref: req.get('referer'),
-        ip: req.ip,
-        ua: req.get('user-agent')
-    });
+    const reqLogger = jitsiLogger.getLogger(reqId, undefined, {});
 
     req.context = new Context(reqLogger, start, reqId);
     res.header('X-Request-Id', reqId);

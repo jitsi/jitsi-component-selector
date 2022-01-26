@@ -1,4 +1,13 @@
-import winston from 'winston';
+import logger from '@jitsi/jitsi-meet-logger';
+
+/**
+ * An instantiated and configured {@code jitsi-meet-logger} instance.
+ */
+export default logger.getLogger('components-selector', undefined, {
+    disableCallerInfo: true
+});
+
+/* import winston from 'winston';
 
 import config from '../config/config';
 
@@ -24,4 +33,6 @@ const options: winston.LoggerOptions = {
 
 const logger = winston.createLogger(options);
 
-export default logger;
+export default logger;*/
+
+
