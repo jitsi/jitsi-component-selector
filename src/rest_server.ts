@@ -1,7 +1,9 @@
+import bodyParser from 'body-parser';
 import * as express from 'express';
 import { Application, Express } from 'express';
+import { body, validationResult } from 'express-validator';
 
-import SessionsHandler from './handlers/sessions_handler';
+import SessionsHandler from './handlers/session_handler';
 import * as errorHandler from './middleware/error_handler';
 import * as stats from './middleware/stats';
 import * as context from './util/context';
@@ -17,6 +19,7 @@ export interface RestServerOptions {
  */
 export default class RestServer {
     private readonly app: express.Express;
+    private readonly protectedApi: boolean;
     private readonly sessionsHandler: SessionsHandler;
 
     /**
@@ -25,6 +28,7 @@ export default class RestServer {
      */
     constructor(options: RestServerOptions) {
         this.app = options.app;
+        this.protectedApi = options.protectedApi;
         this.sessionsHandler = options.sessionsHandler;
     }
 
@@ -42,6 +46,7 @@ export default class RestServer {
      * @private
      */
     private config(app: Express): void {
+        app.use(bodyParser.json());
         app.use(express.json());
         app.use('/', context.injectContext);
 
@@ -50,6 +55,52 @@ export default class RestServer {
         app.use(loggedPaths, stats.middleware);
         app.use(loggedPaths, context.accessLogger);
         stats.registerHandler(app, '/metrics');
+
+        app.use(
+            [ '/jitsi-component-selector/sessions/start' ],
+            body('callParams.callUrlInfo.baseUrl').notEmpty()
+                .withMessage('Value must be set'),
+            body('callParams.callUrlInfo.callName').notEmpty()
+                .withMessage('Value must be set'),
+            body('componentParams.type').notEmpty()
+                .withMessage('Value must be set'),
+            body('componentParams.region').notEmpty()
+                .withMessage('Value must be set'),
+            async (req, res, next) => {
+                try {
+                    const errors = validationResult(req);
+
+                    if (!errors.isEmpty()) {
+                        return res.status(400).json({ errors: errors.array() });
+                    }
+                    next();
+                } catch (err) {
+                    next(err);
+                }
+            }
+        );
+
+        app.use(
+            [ '/jitsi-component-selector/sessions/stop' ],
+            body('callParams.callUrlInfo.baseUrl').notEmpty()
+                .withMessage('Value must be set'),
+            body('callParams.callUrlInfo.callName').notEmpty()
+                .withMessage('Value must be set'),
+            body('sessionId').notEmpty()
+                .withMessage('Value must be set'),
+            async (req, res, next) => {
+                try {
+                    const errors = validationResult(req);
+
+                    if (!errors.isEmpty()) {
+                        return res.status(400).json({ errors: errors.array() });
+                    }
+                    next();
+                } catch (err) {
+                    next(err);
+                }
+            }
+        );
 
         // This is placed last in the middleware chain and is our default error handler.
         app.use(errorHandler.middleware);

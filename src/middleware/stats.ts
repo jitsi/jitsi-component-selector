@@ -6,7 +6,7 @@ promClient.collectDefaultMetrics();
 // Rest server metrics
 const requestsInFlight = new promClient.Gauge({
     name: 'http_server_requests_in_flight',
-    help: 'Gague for requests currently being processed',
+    help: 'Gauge for requests currently being processed',
     labelNames: [ 'method' ]
 });
 
