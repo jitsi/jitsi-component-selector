@@ -2,6 +2,7 @@ import { createAdapter } from '@socket.io/redis-adapter';
 import * as http from 'http';
 import { Redis } from 'ioredis';
 import { Server, Socket } from 'socket.io';
+import { Room, SocketId } from 'socket.io-adapter';
 
 import { Context } from './util/context';
 
@@ -55,7 +56,7 @@ export default class WsServer {
                 socket.disconnect(true);
             } else {
                 ctx.logger.info(`[ws][${socket.id}] Joining room ${queryObject.instanceKey}`);
-                socket.join(queryObject.instanceKey);
+                await socket.join(queryObject.instanceKey);
 
                 socket.on('status-updates', (report: any) => {
                     ctx.logger.info(`[ws][${socket.id}] Got status updates from client. `, {
@@ -72,5 +73,20 @@ export default class WsServer {
                 });
             }
         });
+    }
+
+    /**
+     * Get a map of the local rooms and associated sockets
+     */
+    public getLocalRooms(): Map<Room, Set<SocketId>> {
+        return this.io.of('/').adapter.rooms;
+    }
+
+    /**
+     * Get the socket connected to the local server
+     * @param socketId
+     */
+    public getLocalSocket(socketId:string): Socket {
+        return this.io.of('/').sockets.get(socketId);
     }
 }
