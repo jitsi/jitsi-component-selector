@@ -1,7 +1,7 @@
 /**
  * jitsi-meet-logger declaration
  */
-declare module '@jitsi/jitsi-meet-logger' {
+declare module '@jitsi/logger' {
 
     /**
      * Logger class and it main methods

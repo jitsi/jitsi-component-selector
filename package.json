@@ -38,7 +38,7 @@
     "typescript": "^4.5.4"
   },
   "dependencies": {
-    "@jitsi/jitsi-meet-logger": "github:jitsi/jitsi-meet-logger#063b9a24f8733d2aff7c18439494efc3ae9237ba",
+    "@jitsi/logger": "2.0.0",
     "@socket.io/redis-adapter": "^7.1.0",
     "envalid": "^6.0.2",
     "eslint-config-prettier": "^8.3.0",

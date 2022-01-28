@@ -1,4 +1,4 @@
-import * as jitsiLogger from '@jitsi/jitsi-meet-logger';
+import * as jitsiLogger from '@jitsi/logger';
 import { Request, Response, NextFunction } from 'express';
 import shortid from 'shortid';
 

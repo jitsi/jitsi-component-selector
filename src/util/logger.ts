@@ -1,7 +1,7 @@
-import logger from '@jitsi/jitsi-meet-logger';
+import logger from '@jitsi/logger';
 
 /**
- * An instantiated and configured {@code jitsi-meet-logger} instance.
+ * An instantiated and configured {@code jitsi logger} instance.
  */
 export default logger.getLogger('components-selector', undefined, {
     disableCallerInfo: true
