@@ -3,9 +3,12 @@ import http from 'http';
 import Redis from 'ioredis';
 
 import config from './config/config';
-import SessionsHandler from './handlers/sessions_handler';
+import SessionsHandler from './handlers/session_handler';
+import SessionRepository from './repository/session_repository';
 import RestServer from './rest_server';
-import SessionsService from './service/sessions_service';
+import ComponentService from './service/component_service';
+import SelectionService from './service/selection_service';
+import SessionsService from './service/session_service';
 import { generateNewContext } from './util/context';
 import logger from './util/logger';
 import WsServer from './ws_server';
@@ -35,12 +38,21 @@ if (config.RedisDb) {
 const pubClient = new Redis(redisOptions);
 const subClient = pubClient.duplicate();
 
+const redisClient = new Redis(redisOptions);
+const redisManager = new SessionRepository({
+    redisClient
+});
+
 // configure the http server
 const app = express();
 const httpServer = http.createServer(app);
 
 // configure the rest server
-const sessionsService = new SessionsService();
+const componentService = new ComponentService();
+const selectionService = new SelectionService({ redisManager });
+const sessionsService = new SessionsService({ redisManager,
+    selectionService,
+    componentService });
 const restServer = new RestServer({
     app,
     protectedApi: config.ProtectedApi,
