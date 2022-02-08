@@ -341,9 +341,9 @@ export default class CommandService {
      * @param command command to send
      */
     public async sendCommand(
-        ctx: Context,
-        componentRoom: string,
-        command: Command
+            ctx: Context,
+            componentRoom: string,
+            command: Command
     ): Promise<CommandResponse> {
         let requestId: string;
 
@@ -363,9 +363,9 @@ export default class CommandService {
                 const firstSocketId = socketIds.values().next().value;
 
                 return this.sendCommandToLocalSocket(ctx, firstSocketId, command, response => response);
-            } else {
-                ctx.logger.warn(`Found multiple sockets in room ${componentRoom}`);
             }
+            ctx.logger.warn(`Found multiple sockets in room ${componentRoom}`);
+
         }
 
         // Otherwise publish the request to other nodes
