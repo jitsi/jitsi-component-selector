@@ -66,6 +66,8 @@ export interface CommandServiceOptions {
 
 /**
  * Service which enables sending commands to Components and receiving the response
+ * This code is adapted from the socket.io adapter: https://github.com/socketio/socket.io-redis-adapter,
+ * but contains a more specific functionality: sending a command to only one member in a room and waiting for a reply
  */
 export default class CommandService {
     private wsServer:WsServer;
