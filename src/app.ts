@@ -12,6 +12,7 @@ import ComponentService from './service/component_service';
 import { ComponentTracker } from './service/component_tracker';
 import SelectionService from './service/selection_service';
 import SessionsService from './service/session_service';
+import { ASAPPubKeyFetcher } from './util/asap';
 import { generateNewContext } from './util/context';
 import logger from './util/logger';
 import WsServer from './ws_server';
@@ -81,13 +82,30 @@ const componentTracker = new ComponentTracker({
     componentRepository
 });
 
+const issToBaseUrl = new Map();
+
+for (const issuer of config.SystemAsapJwtAcceptedHookIss.values()) {
+    issToBaseUrl.set(issuer, config.SystemAsapPubKeyBaseUrl);
+}
+
+const asapFetcher = new ASAPPubKeyFetcher(
+    issToBaseUrl,
+    config.AsapPubKeyTTL
+);
+
 // configure the web socket server
 const websocketServer = new WsServer({
     httpServer,
     pubClient,
     subClient,
     wsPath: config.WSServerPath,
-    componentTracker
+    componentTracker,
+    asapFetcher,
+    systemJwtClaims: {
+        asapJwtAcceptedAud: config.SystemAsapJwtAcceptedAud,
+        asapJwtAcceptedHookIss: config.SystemAsapJwtAcceptedHookIss
+    },
+    protectedApi: config.ProtectedApi
 });
 
 const initCtx = generateNewContext();

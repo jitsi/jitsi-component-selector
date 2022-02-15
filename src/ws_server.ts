@@ -1,10 +1,11 @@
-import { createAdapter } from '@socket.io/redis-adapter';
 import * as http from 'http';
 import { Redis } from 'ioredis';
 import { Server, Socket } from 'socket.io';
 import { Room, SocketId } from 'socket.io-adapter';
 
+import { JwtClaims, systemTokenValidationForWs } from './middleware/authorization';
 import { ComponentTracker } from './service/component_tracker';
+import { ASAPPubKeyFetcher } from './util/asap';
 import { Context } from './util/context';
 
 export interface WsServerOptions {
@@ -13,6 +14,9 @@ export interface WsServerOptions {
     subClient: Redis;
     wsPath: string;
     componentTracker: ComponentTracker;
+    asapFetcher: ASAPPubKeyFetcher;
+    systemJwtClaims: JwtClaims;
+    protectedApi: boolean;
 }
 
 interface QueryObject {
@@ -25,6 +29,9 @@ interface QueryObject {
 export default class WsServer {
     private readonly io: Server;
     private componentTracker: ComponentTracker;
+    private asapFetcher: ASAPPubKeyFetcher;
+    private systemJwtClaims: JwtClaims;
+    private protectedApi: boolean;
 
     /**
      * Constructor
@@ -32,8 +39,10 @@ export default class WsServer {
      */
     constructor(options: WsServerOptions) {
         this.io = new Server(options.httpServer, { path: options.wsPath });
-        this.io.adapter(createAdapter(options.pubClient, options.subClient));
         this.componentTracker = options.componentTracker;
+        this.asapFetcher = options.asapFetcher;
+        this.systemJwtClaims = options.systemJwtClaims;
+        this.protectedApi = options.protectedApi;
     }
 
     /**
@@ -42,7 +51,22 @@ export default class WsServer {
      */
     public init(ctx: Context): void {
         // stats.hookToServer(this.io);
+        this.config(ctx);
         this.configRoutes(ctx);
+    }
+
+    /**
+     * Configures the system token validation
+     */
+    private config(ctx: Context) {
+        this.io.use(
+            systemTokenValidationForWs(
+                ctx,
+                this.asapFetcher,
+                this.systemJwtClaims,
+                this.protectedApi
+            )
+        );
     }
 
     /**
@@ -91,7 +115,7 @@ export default class WsServer {
      * Get the socket connected to the local server
      * @param socketId
      */
-    public getLocalSocket(socketId:string): Socket {
+    public getLocalSocket(socketId: string): Socket {
         return this.io.of('/').sockets.get(socketId);
     }
 }

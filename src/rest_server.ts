@@ -166,7 +166,7 @@ export default class RestServer {
         );
 
         app.get(
-            '/jitsi-component-selector/components/:group',
+            '/jitsi-component-selector/groups/:group/components',
             async (req: express.Request, res: express.Response, next: express.NextFunction) => {
                 try {
                     await this.componentHandler.getComponentsInfo(req, res);

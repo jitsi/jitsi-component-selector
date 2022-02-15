@@ -32,11 +32,11 @@ export default class ComponentRepository {
      * @param group name
      */
     private static getGroupComponentStatesKey(group: string) : string {
-        return `components:status:${group}`;
+        return `components:state:${group}`;
     }
 
     /**
-     * Save latest component status
+     * Save latest component state
      * @param ctx
      * @param componentState
      */
