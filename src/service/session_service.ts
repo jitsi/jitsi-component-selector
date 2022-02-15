@@ -39,8 +39,8 @@ export interface ResponsePayload {
 
 // TO BE MOVED
 export enum ErrorType {
-    UNAVAILABLE_INSTANCES = 'unavailable.instances',
-    INSTANCE_NOT_STARTED = 'instance.not.started',
+    UNAVAILABLE_COMPONENTS = 'unavailable.components',
+    COMPONENT_NOT_STARTED = 'component.not.started',
     TIMEOUT = 'timeout',
     CONNECTION_ERROR = 'connection.error',
     INTERNAL_ERROR = 'internal.error',
@@ -58,7 +58,7 @@ export interface ErrorResponsePayload {
 
 export interface SessionsServiceOptions {
     selectionService: SelectionService;
-    redisManager: SessionRepository;
+    sessionRepository: SessionRepository;
     componentService: ComponentService;
 }
 
@@ -76,7 +76,7 @@ export default class SessionsService {
      * @param options options
      */
     constructor(options: SessionsServiceOptions) {
-        this.sessionRepository = options.redisManager;
+        this.sessionRepository = options.sessionRepository;
         this.selectionService = options.selectionService;
         this.componentService = options.componentService;
     }

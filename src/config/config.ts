@@ -26,7 +26,8 @@ const env = envalid.cleanEnv(process.env, {
     REDIS_TLS: envalid.bool({ default: false }),
     REDIS_DB: envalid.num({ default: 0 }),
     REDIS_SCAN_COUNT: envalid.num({ default: 100 }),
-    PROTECTED_API: envalid.bool({ default: true })
+    PROTECTED_API: envalid.bool({ default: true }),
+    COMPONENT_TTL_SEC: envalid.num({ default: 3600 })
 });
 
 export default {
@@ -39,5 +40,6 @@ export default {
     RedisTLS: env.REDIS_TLS,
     RedisDb: env.REDIS_DB,
     RedisScanCount: env.REDIS_SCAN_COUNT,
-    ProtectedApi: env.PROTECTED_API
+    ProtectedApi: env.PROTECTED_API,
+    ComponentTtlSec: env.COMPONENT_TTL_SEC
 };

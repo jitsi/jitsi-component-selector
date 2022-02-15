@@ -9,7 +9,7 @@ export interface Component {
 }
 
 export interface SelectionServiceOptions {
-    redisManager: SessionRepository;
+    sessionRepository: SessionRepository;
 }
 
 /**
@@ -17,14 +17,14 @@ export interface SelectionServiceOptions {
  */
 export default class SelectionService {
 
-    private redisManager: SessionRepository;
+    private sessionRepository: SessionRepository;
 
     /**
      * Constructor
      * @param options options
      */
     constructor(options: SelectionServiceOptions) {
-        this.redisManager = options.redisManager;
+        this.sessionRepository = options.sessionRepository;
     }
 
     /**

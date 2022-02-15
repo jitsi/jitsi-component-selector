@@ -22,7 +22,8 @@ export enum CommandType {
 }
 
 export interface CommandPayload {
-    jibriKey: string;
+    componentKey: string;
+    componentRequest: any;
 }
 
 export interface Command {
@@ -37,7 +38,7 @@ export enum ErrorType {
 }
 
 export interface ErrorResponsePayload {
-    jibriKey: string;
+    componentKey: string;
     errorKey: ErrorType;
     errorMessage: string;
 }
@@ -48,7 +49,7 @@ export enum CommandResponseType {
 }
 
 export interface CommandResponsePayload {
-    jibriKey: string;
+    componentKey: string;
     sipUsername: string;
 }
 
@@ -181,7 +182,7 @@ export default class CommandService {
 
         const ctx = generateNewContext(request.requestId);
 
-        ctx.logger.debug('[Adapter] Received request %j', request);
+        ctx.logger.debug('[Adapter] Received request ', { request });
 
         let response;
 
@@ -247,7 +248,7 @@ export default class CommandService {
             return;
         }
 
-        ctx.logger.debug('[Adapter] Received response %j', response);
+        ctx.logger.debug('[Adapter] Received response ', { response });
 
         const request = this.requests.get(requestId);
 

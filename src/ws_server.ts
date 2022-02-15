@@ -4,6 +4,7 @@ import { Redis } from 'ioredis';
 import { Server, Socket } from 'socket.io';
 import { Room, SocketId } from 'socket.io-adapter';
 
+import { ComponentTracker } from './service/component_tracker';
 import { Context } from './util/context';
 
 export interface WsServerOptions {
@@ -11,10 +12,11 @@ export interface WsServerOptions {
     pubClient: Redis;
     subClient: Redis;
     wsPath: string;
+    componentTracker: ComponentTracker;
 }
 
 interface QueryObject {
-    instanceKey: string;
+    componentKey: string;
 }
 
 /**
@@ -22,6 +24,7 @@ interface QueryObject {
  */
 export default class WsServer {
     private readonly io: Server;
+    private componentTracker: ComponentTracker;
 
     /**
      * Constructor
@@ -30,6 +33,7 @@ export default class WsServer {
     constructor(options: WsServerOptions) {
         this.io = new Server(options.httpServer, { path: options.wsPath });
         this.io.adapter(createAdapter(options.pubClient, options.subClient));
+        this.componentTracker = options.componentTracker;
     }
 
     /**
@@ -48,28 +52,29 @@ export default class WsServer {
      */
     private configRoutes(ctx: Context): void {
         this.io.on('connection', async (socket: Socket) => {
-            ctx.logger.info(`[ws][${socket.id}] Client connected`);
+            ctx.logger.info(`[${socket.id}] Client connected`);
             const queryObject = socket.handshake.query as unknown as QueryObject;
 
-            if (!queryObject.instanceKey || queryObject.instanceKey.length === 0) {
-                ctx.logger.error(`[ws][${socket.id}] Client connected without an instanceKey, disconnecting it`);
+            if (!queryObject.componentKey || queryObject.componentKey.length === 0) {
+                ctx.logger.error(`[${socket.id}] Client connected without a componentKey, disconnecting it`);
                 socket.disconnect(true);
             } else {
-                ctx.logger.info(`[ws][${socket.id}] Joining room ${queryObject.instanceKey}`);
-                await socket.join(queryObject.instanceKey);
+                ctx.logger.info(`[${socket.id}] Joining room ${queryObject.componentKey}`);
+                await socket.join(queryObject.componentKey);
 
                 socket.on('status-updates', (report: any) => {
-                    ctx.logger.info(`[ws][${socket.id}] Got status updates from client. `, {
+                    ctx.logger.info(`[${socket.id}] Got status updates from client. `, {
                         report
                     });
+                    this.componentTracker.track(ctx, report);
                 });
 
                 socket.on('disconnecting', () => {
-                    ctx.logger.info(`[ws][${socket.id}] Disconnecting client from rooms`, { rooms: socket.rooms });
+                    ctx.logger.info(`[${socket.id}] Disconnecting client from rooms`, { rooms: socket.rooms });
                 });
 
                 socket.on('disconnect', () => {
-                    ctx.logger.info(`[ws][${socket.id}] Client disconnected`);
+                    ctx.logger.info(`[${socket.id}] Client disconnected`);
                 });
             }
         });
