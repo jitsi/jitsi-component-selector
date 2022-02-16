@@ -3,6 +3,7 @@ import * as express from 'express';
 import { Application, Express } from 'express';
 import { body, validationResult } from 'express-validator';
 
+import ComponentHandler from './handlers/component_handler';
 import SessionsHandler from './handlers/session_handler';
 import * as errorHandler from './middleware/error_handler';
 import * as stats from './middleware/stats';
@@ -12,6 +13,7 @@ export interface RestServerOptions {
   app: express.Express;
   protectedApi: boolean;
   sessionsHandler: SessionsHandler;
+  componentHandler: ComponentHandler;
 }
 
 /**
@@ -21,6 +23,7 @@ export default class RestServer {
     private readonly app: express.Express;
     private readonly protectedApi: boolean;
     private readonly sessionsHandler: SessionsHandler;
+    private readonly componentHandler: ComponentHandler;
 
     /**
      * Constructor
@@ -30,6 +33,7 @@ export default class RestServer {
         this.app = options.app;
         this.protectedApi = options.protectedApi;
         this.sessionsHandler = options.sessionsHandler;
+        this.componentHandler = options.componentHandler;
     }
 
     /**
@@ -159,6 +163,17 @@ export default class RestServer {
               next(err);
           }
       }
+        );
+
+        app.get(
+            '/jitsi-component-selector/groups/:group/components',
+            async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+                try {
+                    await this.componentHandler.getComponentsInfo(req, res);
+                } catch (err) {
+                    next(err);
+                }
+            }
         );
     }
 }
