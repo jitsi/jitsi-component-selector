@@ -17,9 +17,7 @@ import { generateNewContext } from './util/context';
 import logger from './util/logger';
 import WsServer from './ws_server';
 
-logger.info('Starting up jitsi-component-selector service with config', {
-    config
-});
+logger.info(`Starting up jitsi-component-selector service with config: ${JSON.stringify(config)}`);
 
 // configure Redis
 const redisOptions = <Redis.RedisOptions>{
@@ -108,9 +106,9 @@ const websocketServer = new WsServer({
     protectedApi: config.ProtectedApi
 });
 
-const initCtx = generateNewContext();
+const wsServerCtx = generateNewContext('ws-server');
 
-websocketServer.init(initCtx);
+websocketServer.init(wsServerCtx);
 
 
 // start server

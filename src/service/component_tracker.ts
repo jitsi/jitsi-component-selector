@@ -107,7 +107,7 @@ export class ComponentTracker {
      * @param report
      */
     async track(ctx: Context, report: StatsReport): Promise<boolean> {
-        ctx.logger.debug('Received report', { report });
+        ctx.logger.debug(`Received report ${JSON.stringify(report)}`);
         const componentState = <ComponentState>{
             componentId: report.component.componentId,
             hostname: report.component.hostname,
@@ -122,7 +122,7 @@ export class ComponentTracker {
         if (!componentState.status) {
             // this can happen either at provisioning when the component is not yet up,
             // or when the sidecar does not see the component
-            ctx.logger.info('Empty stats report, as it does not include component stats', { report });
+            ctx.logger.info(`Empty stats report, as it does not include component stats: ${JSON.stringify(report)}`);
 
             componentState.status = {
                 busyStatus: InstanceStatusState.SidecarRunning,

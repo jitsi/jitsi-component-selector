@@ -76,29 +76,28 @@ export default class WsServer {
      */
     private configRoutes(ctx: Context): void {
         this.io.on('connection', async (socket: Socket) => {
-            ctx.logger.info(`[${socket.id}] Client connected`);
+            ctx.logger.info(`Client connected. socket=${socket.id}`);
             const queryObject = socket.handshake.query as unknown as QueryObject;
 
             if (!queryObject.componentKey || queryObject.componentKey.length === 0) {
-                ctx.logger.error(`[${socket.id}] Client connected without a componentKey, disconnecting it`);
+                ctx.logger.error(`Client connected without a componentKey, disconnecting it, socket=${socket.id}`);
                 socket.disconnect(true);
             } else {
-                ctx.logger.info(`[${socket.id}] Joining room ${queryObject.componentKey}`);
+                ctx.logger.info(`Joining room ${queryObject.componentKey}, socket=${socket.id}`);
                 await socket.join(queryObject.componentKey);
 
                 socket.on('status-updates', (report: any) => {
-                    ctx.logger.info(`[${socket.id}] Got status updates from client. `, {
-                        report
-                    });
+                    ctx.logger.info(`Got status updates from client. ${JSON.stringify(report)}, socket=${socket.id}`);
                     this.componentTracker.track(ctx, report);
                 });
 
                 socket.on('disconnecting', () => {
-                    ctx.logger.info(`[${socket.id}] Disconnecting client from rooms`, { rooms: socket.rooms });
+                    ctx.logger.info(`Disconnecting client from rooms ${JSON.stringify(socket.rooms)}, `
+                        + `socket=${socket.id}`);
                 });
 
                 socket.on('disconnect', () => {
-                    ctx.logger.info(`[${socket.id}] Client disconnected`);
+                    ctx.logger.info(`Client disconnected, socket=${socket.id}`);
                 });
             }
         });
