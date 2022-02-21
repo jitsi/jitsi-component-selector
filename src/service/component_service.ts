@@ -51,7 +51,7 @@ export default class ComponentService {
             requestPayload: StartSessionRequest,
             component: Component
     ): Promise<ResponsePayload | ErrorResponsePayload> {
-        ctx.logger.info(`Start component ${component} session ${sessionId}`);
+        ctx.logger.info(`Start component ${JSON.stringify(component)} session ${sessionId}`);
 
         return {
             sessionId,

@@ -99,7 +99,7 @@ export default class SessionsService {
         );
 
         // todo component not found
-        ctx.logger.info(`Selected component ${component} for session ${sessionId}`);
+        ctx.logger.info(`Selected component ${JSON.stringify(component)} for session ${sessionId}`);
         const responsePayload = await this.componentService.start(ctx, sessionId, requestPayload, component);
 
         if (requestPayload && responsePayload.hasOwnProperty('errorKey')) {

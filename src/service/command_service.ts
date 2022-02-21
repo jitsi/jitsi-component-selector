@@ -164,7 +164,7 @@ export default class CommandService {
         if (channel.toString().startsWith(this.responseChannel)) {
             return this.onResponse(channel, msg);
         } else if (!channel.toString().startsWith(this.requestChannel)) {
-            return logger.debug('[Adapter] Ignore different channel');
+            return logger.debug('Ignore different channel');
         }
 
         let request;
@@ -182,7 +182,7 @@ export default class CommandService {
 
         const ctx = generateNewContext(request.requestId);
 
-        ctx.logger.debug('[Adapter] Received request ', { request });
+        ctx.logger.debug(`Received request ${JSON.stringify(request)}`);
 
         let response;
 
@@ -192,7 +192,7 @@ export default class CommandService {
             const roomName = request.roomName;
 
             if (roomName && this.wsServer.getLocalRooms().has(roomName)) {
-                ctx.logger.info('[Adapter] Handling remote command request', { request });
+                ctx.logger.info(`Handling remote command request ${JSON.stringify(request)}`);
                 const socketIds = this.wsServer.getLocalRooms().get(roomName);
 
                 if (socketIds && socketIds.size > 0) {
@@ -204,14 +204,13 @@ export default class CommandService {
                             commandResponse,
                             ctx
                         });
-                        ctx.logger.info('[Adapter] Publishing remote command response', { response });
+                        ctx.logger.info(`Publishing remote command response ${JSON.stringify(response)}`);
                         this.pubClient.publish(this.responseChannel, response);
                     });
                 }
             } else {
-                ctx.logger.debug('[Adapter] Remote command room does not exist here, nothing to be done', {
-                    request
-                });
+                ctx.logger.debug('Remote command room does not exist here, nothing to be done, request is '
+                    + `${JSON.stringify(request)}`);
             }
             break;
         }
@@ -231,9 +230,7 @@ export default class CommandService {
         try {
             response = JSON.parse(msg);
         } catch (err) {
-            logger.error('Error parsing response msg', { err,
-                msg })
-
+            logger.error(`Error parsing response msg ${msg}, err ${err}`, { err })
 
             // this.emit('error', err);
             return;
@@ -243,18 +240,18 @@ export default class CommandService {
         const ctx = generateNewContext(requestId);
 
         if (!requestId || !this.requests.has(requestId)) {
-            ctx.logger.debug('[Adapter] Ignoring unknown request');
+            ctx.logger.debug('Ignoring unknown request');
 
             return;
         }
 
-        ctx.logger.debug('[Adapter] Received response ', { response });
+        ctx.logger.debug(`Received response ${JSON.stringify(response)}`);
 
         const request = this.requests.get(requestId);
 
         switch (request.type) {
         case RequestType.REMOTE_COMMAND: {
-            ctx.logger.info('[Adapter] Received remote response', { response });
+            ctx.logger.info(`Received remote response ${JSON.stringify(response)}`);
             clearTimeout(request.timeout);
             if (request.resolve) {
                 request.resolve(response.commandResponse);
@@ -263,7 +260,7 @@ export default class CommandService {
             break;
         }
         default:
-            ctx.logger.warn(`[Adapter] Ignoring unknown request type: ${request.type}`);
+            ctx.logger.warn(`Ignoring unknown request type: ${request.type}`);
         }
     }
 
@@ -281,7 +278,7 @@ export default class CommandService {
             command: any,
             onSuccess: (response: any) => any
     ): Promise<any> {
-        ctx.logger.info(`[Adapter] Send local command ${command.type} to socket ${socketId}`);
+        ctx.logger.info(`Send local command ${command.type} to socket ${socketId}`);
 
         return new Promise(
             (
@@ -293,10 +290,8 @@ export default class CommandService {
                 // fail fast if socket is not connected
                 // checking that the socket is connected also helps avoid the buffering of the requests
                 if (!socket || !socket.connected) {
-                    ctx.logger.error(
-                        `[Adapter] Connection error while sending local command ${command.type} to socket ${socket}`,
-                        { command }
-                    );
+                    ctx.logger.error(`Connection error while sending local command ${command.type} `
+                        + `to socket ${socket}, command ${JSON.stringify(command)}`);
 
                     reject({
                         name: ErrorType.CONNECTION_ERROR,
@@ -312,17 +307,13 @@ export default class CommandService {
                     command,
                     this.withTimeout(
                         (response: CommandResponse) => {
-                            ctx.logger.info(
-                                `[Adapter] Got response for local command ${command.type} from socket ${socket}`,
-                                { response }
-                            );
+                            ctx.logger.info(`Got response for local command ${command.type} from socket ${socket}, `
+                                + `response ${JSON.stringify(response)}`);
                             resolve(onSuccess(response));
                         },
                         () => {
-                            ctx.logger.error(
-                                `[Adapter] Timeout while sending local command ${command.type} to socket ${socket}`,
-                                { command }
-                            );
+                            ctx.logger.error(`Timeout while sending local command ${command.type} to socket ${socket}, `
+                                + `command ${JSON.stringify(command)}`);
                             reject({
                                 name: ErrorType.TIMEOUT,
                                 message: `Timeout while sending local command, after ${this.requestsTimeout} ms`
@@ -356,7 +347,8 @@ export default class CommandService {
             requestId = shortid.generate();
         }
 
-        ctx.logger.info(`Send command ${command.type} to component ${componentRoom}`, { command });
+        ctx.logger.info(`Send command ${command.type} to component ${componentRoom}, `
+            + `command ${JSON.stringify(command)}`);
 
         // If room is local, send it to its connected socket
         if (this.wsServer.getLocalRooms().has(componentRoom)) {
@@ -400,7 +392,7 @@ export default class CommandService {
                     timeout
                 });
 
-                ctx.logger.info(`[Adapter] Send remote command ${command.type} to room ${componentRoom}`);
+                ctx.logger.info(`Send remote command ${command.type} to room ${componentRoom}`);
                 this.pubClient.publish(this.requestChannel, request);
             }
         );

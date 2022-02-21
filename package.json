@@ -46,6 +46,7 @@
     "winston": "^3.3.3"
   },
   "dependencies": {
+    "@jitsi/logger": "^2.0.1",
     "@socket.io/redis-adapter": "^7.1.0",
     "envalid": "^6.0.2",
     "eslint-config-prettier": "^8.3.0",

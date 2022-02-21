@@ -49,7 +49,8 @@ export default class ComponentRepository {
                 JSON.stringify(componentState)
             );
         } else {
-            ctx.logger.error('Skipped saving latest status, due to invalid component state', { componentState });
+            ctx.logger.error('Skipped saving latest status, due to invalid component state: '
+                + `${JSON.stringify(componentState)}`);
         }
     }
 
@@ -143,10 +144,7 @@ export default class ComponentRepository {
                 componentsStateResponse.push(state);
             } else {
                 deletePipeline.hdel(ComponentRepository.getGroupComponentStatesKey(state.group), state.componentId);
-                ctx.logger.debug('Will delete expired state:', {
-                    expiresAt,
-                    state
-                });
+                ctx.logger.debug(`Will delete expired state: expiredAt ${expiresAt}, state ${JSON.stringify(state)}`);
             }
         }
         await deletePipeline.exec();
