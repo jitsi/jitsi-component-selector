@@ -70,6 +70,8 @@ export default class RestServer {
                 .withMessage('Value must be set'),
             body('componentParams.region').notEmpty()
                 .withMessage('Value must be set'),
+            body('componentParams.environment').notEmpty()
+                .withMessage('Value must be set'),
             async (req, res, next) => {
                 try {
                     const errors = validationResult(req);

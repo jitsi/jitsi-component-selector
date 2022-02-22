@@ -52,6 +52,8 @@ const componentRepository = new ComponentRepository({
     componentTtlSec: config.ComponentTtlSec
 });
 
+componentRepository.defineRedisCustomCommands();
+
 // create the http server
 const app = express();
 const httpServer = http.createServer(app);
@@ -91,7 +93,8 @@ const websocketServer = new WsServer({
 const commandService = new CommandService(websocketServer, pubClient, subClient);
 const componentService = new ComponentService({ componentRepository,
     commandService });
-const selectionService = new SelectionService({ sessionRepository });
+const selectionService = new SelectionService({ componentRepository,
+    candidateTTLSec: config.CandidateTTLSec });
 const sessionsService = new SessionsService({ sessionRepository,
     selectionService,
     componentService });
