@@ -75,14 +75,27 @@ export interface SipClientParams {
     autoAnswer: boolean;
 }
 
+export interface JibriAppData {
+
+    /**
+     * A JSON map representing arbitrary data to be written
+     * to the metadata file when doing a recording.
+     */
+    fileRecordingMetadata: any;
+}
+
+export interface JibriServiceParams {
+    appData?: JibriAppData;
+
+    // TODO decide how this should be passed on and supported
+    usageTimeoutMins?: number;
+}
+
 export interface JibriMetadata {
     sinkType: JibriSinkType;
     sipClientParams?: SipClientParams;
     youTubeStreamKey?: string;
-    appData?: string;
-
-    // TODO decide how this should be passed on and supported
-    usageTimeoutMins?: number;
+    serviceParams?: JibriServiceParams;
 }
 
 export interface JigasiMetadata {
