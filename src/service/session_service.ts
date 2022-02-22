@@ -9,6 +9,12 @@ import {
 import SessionRepository from '../repository/session_repository';
 import { Context } from '../util/context';
 
+import {
+    CommandErrorResponsePayload,
+    CommandResponse,
+    CommandResponsePayload,
+    CommandResponseType
+} from './command_service';
 import ComponentService from './component_service';
 import SelectionService, { Component } from './selection_service';
 
@@ -28,8 +34,7 @@ export interface Session {
     status: SessionStatus;
 }
 
-// TO BE MOVED
-export interface ResponsePayload {
+export interface SessionResponsePayload {
     sessionId: string;
     region: string;
     type: ComponentType;
@@ -37,22 +42,20 @@ export interface ResponsePayload {
     metadata?: any;
 }
 
-// TO BE MOVED
-export enum ErrorType {
+export enum SessionErrorType {
     UNAVAILABLE_COMPONENTS = 'unavailable.components',
     COMPONENT_NOT_STARTED = 'component.not.started',
-    TIMEOUT = 'timeout',
-    CONNECTION_ERROR = 'connection.error',
     INTERNAL_ERROR = 'internal.error',
+    TIMEOUT = 'timeout',
+    CONNECTION_ERROR = 'connection.error'
 }
 
-// TO BE MOVED
-export interface ErrorResponsePayload {
+export interface SessionErrorResponsePayload {
     sessionId: string;
     region: string;
     type: ComponentType;
     componentKey: string;
-    errorKey: ErrorType;
+    errorKey: SessionErrorType;
     errorMessage: string;
 }
 
@@ -84,40 +87,82 @@ export default class SessionsService {
     /**
      * Starts a (recording, dial-out etc) session for a meeting
      * @param ctx request context
-     * @param requestPayload
+     * @param startSessionRequest
      */
     async startSession(ctx: Context,
-            requestPayload: StartSessionRequest
-    ): Promise<ResponsePayload | ErrorResponsePayload> {
+            startSessionRequest: StartSessionRequest
+    ): Promise<SessionResponsePayload | SessionErrorResponsePayload> {
+        let sessionResponsePayload;
         const sessionId = uuidv4();
 
         ctx.logger.info(`Starting session ${sessionId}`);
 
         const component : Component = await this.selectionService.selectComponent(
             ctx,
-            requestPayload
+            startSessionRequest
         );
 
         // todo component not found
         ctx.logger.info(`Selected component ${JSON.stringify(component)} for session ${sessionId}`);
-        const responsePayload = await this.componentService.start(ctx, sessionId, requestPayload, component);
 
-        if (requestPayload && responsePayload.hasOwnProperty('errorKey')) {
-            return responsePayload;
+        const commandResponse:CommandResponse = await this.componentService.start(ctx,
+            sessionId, startSessionRequest, component.key);
+
+        if (commandResponse && commandResponse.responseType === CommandResponseType.SUCCESS) {
+            ctx.logger.info(`Done, started component ${component.key} for session ${sessionId}`);
+            const commandResponsePayload: CommandResponsePayload = commandResponse.payload as CommandResponsePayload;
+
+            await this.handleStartSuccess(ctx, sessionId, startSessionRequest, commandResponsePayload);
+
+            sessionResponsePayload = {
+                sessionId,
+                type: startSessionRequest.componentParams.type,
+                region: startSessionRequest.componentParams.region,
+                componentKey: component.key,
+                metadata: commandResponsePayload.metadata
+            }
+        } else {
+            ctx.logger.info(`Failed to start component ${component.key} for session ${sessionId}`);
+
+            // TODO add handleStartFailure() - remove from in progress pool
+            const commandErrorResponse = commandResponse.payload as CommandErrorResponsePayload;
+
+            sessionResponsePayload = {
+                sessionId,
+                type: startSessionRequest.componentParams.type,
+                region: startSessionRequest.componentParams.region,
+                componentKey: component.key,
+                errorKey: commandErrorResponse.errorKey as unknown as SessionErrorType,
+                errorMessage: commandErrorResponse.errorMessage
+            }
         }
 
+        return sessionResponsePayload;
+
+    }
+
+    /**
+     * Handles a successful start session result, by updating session info
+     * @param ctx
+     * @param sessionId
+     * @param startSessionRequest
+     * @param commandResponsePayload
+     * @private
+     */
+    private async handleStartSuccess(ctx: Context,
+            sessionId: string,
+            startSessionRequest: StartSessionRequest,
+            commandResponsePayload: CommandResponsePayload) {
         const session = <Session>{
             sessionId,
-            baseUrl: requestPayload.callParams.callUrlInfo.baseUrl,
-            callName: requestPayload.callParams.callUrlInfo.callName,
-            componentKey: responsePayload.componentKey,
-            componentType: requestPayload.componentParams.type,
-            region: requestPayload.componentParams.region
+            baseUrl: startSessionRequest.callParams.callUrlInfo.baseUrl,
+            callName: startSessionRequest.callParams.callUrlInfo.callName,
+            componentKey: commandResponsePayload.componentKey,
+            componentType: startSessionRequest.componentParams.type,
+            region: startSessionRequest.componentParams.region
         };
 
         await this.sessionRepository.upsertSession(ctx, session);
-
-        return responsePayload;
     }
 
     /**
@@ -127,20 +172,52 @@ export default class SessionsService {
      */
     async stopSession(ctx: Context,
             stopSessionRequest: StopSessionRequest
-    ): Promise<ResponsePayload | ErrorResponsePayload> {
+    ): Promise<SessionResponsePayload | SessionErrorResponsePayload> {
         ctx.logger.info(`Stopping session ${stopSessionRequest.sessionId}`);
+        let sessionResponsePayload;
 
         const session: Session = await this.sessionRepository.getSession(ctx, stopSessionRequest.sessionId);
 
-        if (session) {
-            // todo check if customer's domain == session.domain
-            return await this.componentService.stop(
-                    ctx,
-                    session
-            );
+        if (!session) {
+            return null;
         }
 
-        return null;
+        // todo check if customer's domain == session.domain
+        const commandResponse: CommandResponse = await this.componentService.stop(ctx,
+            session.sessionId,
+            session.componentKey);
+
+        if (commandResponse && commandResponse.responseType === CommandResponseType.SUCCESS) {
+            ctx.logger.info(`Done, stopped component ${session.componentKey} for session ${session.sessionId}`);
+            const commandResponsePayload: CommandResponsePayload = commandResponse.payload as CommandResponsePayload;
+
+            // TODO handle stop success
+
+            sessionResponsePayload = {
+                sessionId: session.sessionId,
+                type: session.componentType,
+                region: session.region,
+                componentKey: session.componentKey,
+                metadata: commandResponsePayload.metadata
+            };
+        } else {
+            ctx.logger.info(`Failed to stop component ${session.componentKey} for session ${session.sessionId}`);
+
+            // TODO handle stop failure
+
+            const commandErrorResponse = commandResponse.payload as CommandErrorResponsePayload;
+
+            sessionResponsePayload = {
+                sessionId: session.sessionId,
+                type: session.componentType,
+                region: session.region,
+                componentKey: session.componentKey,
+                errorKey: commandErrorResponse.errorKey as unknown as SessionErrorType,
+                errorMessage: commandErrorResponse.errorMessage
+            }
+        }
+
+        return sessionResponsePayload;
     }
 
     /**

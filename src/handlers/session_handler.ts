@@ -14,18 +14,99 @@ export interface CallUrlInfo {
 }
 
 export interface CallParams {
-    callUrlInfo: CallUrlInfo;
+
+    /**
+     * Jibri uses the call url info to join the meeting
+     */
+    callUrlInfo?: CallUrlInfo;
+
+    /**
+     * Jigasi does not use the url info, but instead relies on the room
+     * //TODO perhaps we can refactor Jibri to use the room as well
+     */
+    room?: string;
+
+    /**
+     * Email to populate on the xmpp join message
+     */
+    email?: string;
+
+    /**
+     * This will be used by jitsi-meet to send the conference password to prosody
+     * and bypass the password prompt
+     */
     passcode?: string;
+
+    /**
+     * This value will be the component identifier in callStats app
+     * Use it only to override the callStatsUsername set by default by the component
+     */
+    callStatsUsernameOverride?: string;
+
+    /**
+     * Display name which is used by the component when joining the web conference.
+     */
+    displayName?: string;
+}
+
+export enum JibriSinkType {
+    FILE = 'FILE',
+    STREAM = 'STREAM',
+    GATEWAY = 'GATEWAY'
+}
+
+export interface SipClientParams {
+
+    /**
+     * The SIP address we'll be connecting to
+     */
+    sipAddress: string;
+
+    /**
+     * The display name used by pjsua as identity when listening for or sending an invite
+     * For sending an invite, this should be the name of the entity initiating the invite
+     */
+    displayName: string;
+
+    /**
+     * Whether auto-answer is enabled, if it is, the client will listen for
+     * incoming invites and will auto answer the first one.
+     */
+    autoAnswer: boolean;
+}
+
+export interface JibriMetadata {
+    sinkType: JibriSinkType;
+    sipClientParams?: SipClientParams;
+    youTubeStreamKey?: string;
+    appData?: string;
+
+    // TODO decide how this should be passed on and supported
+    usageTimeoutMins?: number;
+}
+
+export interface JigasiMetadata {
+    from: string;
+    to: string;
+    headers: any;
 }
 
 export interface ComponentParams {
     type: ComponentType;
     region: string;
-    metadata?: any;
+    metadata?: JibriMetadata | JigasiMetadata;
+}
+
+export interface CallLoginParams {
+    domain?: string;
+    username?: string;
+    password?: string;
+    token?: string;
 }
 
 export interface StartSessionRequest {
     callParams: CallParams;
+    callLoginParams: CallLoginParams
     componentParams: ComponentParams;
 }
 
@@ -81,9 +162,9 @@ export default class SessionsHandler {
      * @param res response
      */
     async stopSession(req: Request, res: Response): Promise<void> {
-        const requestPayload: StopSessionRequest = req.body;
+        const stopSessionRequest: StopSessionRequest = req.body;
 
-        const responsePayload = await this.sessionsService.stopSession(req.context, requestPayload);
+        const responsePayload = await this.sessionsService.stopSession(req.context, stopSessionRequest);
 
         if (responsePayload.hasOwnProperty('errorKey')) {
             res.status(400);

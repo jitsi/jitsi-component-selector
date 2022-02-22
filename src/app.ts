@@ -8,6 +8,7 @@ import SessionsHandler from './handlers/session_handler';
 import ComponentRepository from './repository/component_repository';
 import SessionRepository from './repository/session_repository';
 import RestServer from './rest_server';
+import CommandService from './service/command_service';
 import ComponentService from './service/component_service';
 import { ComponentTracker } from './service/component_tracker';
 import SelectionService from './service/selection_service';
@@ -51,12 +52,45 @@ const componentRepository = new ComponentRepository({
     componentTtlSec: config.ComponentTtlSec
 });
 
-// configure the http server
+// create the http server
 const app = express();
 const httpServer = http.createServer(app);
 
-// configure the rest server
-const componentService = new ComponentService({ componentRepository });
+// configure the web socket server dependencies
+const issToBaseUrl = new Map();
+
+for (const issuer of config.SystemAsapJwtAcceptedHookIss.values()) {
+    issToBaseUrl.set(issuer, config.SystemAsapPubKeyBaseUrl);
+}
+
+const asapFetcher = new ASAPPubKeyFetcher(
+    issToBaseUrl,
+    config.AsapPubKeyTTL
+);
+
+const componentTracker = new ComponentTracker({
+    componentRepository
+});
+
+// create the websocket server
+const websocketServer = new WsServer({
+    httpServer,
+    pubClient,
+    subClient,
+    wsPath: config.WSServerPath,
+    componentTracker,
+    asapFetcher,
+    systemJwtClaims: {
+        asapJwtAcceptedAud: config.SystemAsapJwtAcceptedAud,
+        asapJwtAcceptedHookIss: config.SystemAsapJwtAcceptedHookIss
+    },
+    protectedApi: config.ProtectedApi
+});
+
+// configure the rest server dependencies
+const commandService = new CommandService(websocketServer, pubClient, subClient);
+const componentService = new ComponentService({ componentRepository,
+    commandService });
 const selectionService = new SelectionService({ sessionRepository });
 const sessionsService = new SessionsService({ sessionRepository,
     selectionService,
@@ -72,47 +106,15 @@ const restServer = new RestServer({
     })
 });
 
+// initialize the rest routes and the websocket routes
 restServer.init();
-
-
-const componentTracker = new ComponentTracker({
-    componentService,
-    componentRepository
-});
-
-const issToBaseUrl = new Map();
-
-for (const issuer of config.SystemAsapJwtAcceptedHookIss.values()) {
-    issToBaseUrl.set(issuer, config.SystemAsapPubKeyBaseUrl);
-}
-
-const asapFetcher = new ASAPPubKeyFetcher(
-    issToBaseUrl,
-    config.AsapPubKeyTTL
-);
-
-// configure the web socket server
-const websocketServer = new WsServer({
-    httpServer,
-    pubClient,
-    subClient,
-    wsPath: config.WSServerPath,
-    componentTracker,
-    asapFetcher,
-    systemJwtClaims: {
-        asapJwtAcceptedAud: config.SystemAsapJwtAcceptedAud,
-        asapJwtAcceptedHookIss: config.SystemAsapJwtAcceptedHookIss
-    },
-    protectedApi: config.ProtectedApi
-});
 
 const wsServerCtx = generateNewContext('ws-server');
 
 websocketServer.init(wsServerCtx);
 
 
-// start server
-
+// start the http server
 if (config.ProtectedApi) {
     logger.debug('Starting in protected api mode');
 } else {

@@ -1,8 +1,6 @@
 import ComponentRepository from '../repository/component_repository';
 import { Context } from '../util/context';
 
-import ComponentService from './component_service';
-
 export enum InstanceStatusState {
     Idle = 'IDLE',
     Busy = 'BUSY',
@@ -81,14 +79,12 @@ export interface ComponentState {
 }
 
 export interface ComponentTrackerOptions {
-    componentService: ComponentService,
     componentRepository: ComponentRepository
 }
 
 /**
  */
 export class ComponentTracker {
-    private componentService: ComponentService;
     private componentRepository: ComponentRepository;
 
     /**
@@ -96,7 +92,6 @@ export class ComponentTracker {
      * @param options
      */
     constructor(options: ComponentTrackerOptions) {
-        this.componentService = options.componentService;
         this.componentRepository = options.componentRepository;
         this.track = this.track.bind(this);
     }

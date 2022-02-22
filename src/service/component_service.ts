@@ -1,10 +1,11 @@
-import { StartSessionRequest } from '../handlers/session_handler';
+import shortid from 'shortid';
+
+import { ComponentType, JibriMetadata, JigasiMetadata, StartSessionRequest } from '../handlers/session_handler';
 import ComponentRepository from '../repository/component_repository';
 import { Context } from '../util/context';
 
+import CommandService, { Command, CommandResponse, CommandType } from './command_service';
 import { ComponentMetadata, ComponentState, ComponentStatus } from './component_tracker';
-import { Component } from './selection_service';
-import { ErrorResponsePayload, ResponsePayload, Session } from './session_service';
 
 export interface ComponentInfo {
     componentKey: string;
@@ -20,7 +21,8 @@ export interface ComponentInfo {
 }
 
 export interface ComponentServiceOptions {
-    componentRepository: ComponentRepository
+    componentRepository: ComponentRepository,
+    commandService: CommandService
 }
 
 /**
@@ -29,6 +31,7 @@ export interface ComponentServiceOptions {
 export default class ComponentService {
 
     private componentRepository: ComponentRepository;
+    private commandService: CommandService;
 
     /**
      * Constructor
@@ -36,48 +39,83 @@ export default class ComponentService {
      */
     constructor(options: ComponentServiceOptions) {
         this.componentRepository = options.componentRepository;
+        this.commandService = options.commandService;
     }
 
     /**
      * Starts the (jibri, jigasi etc) session
      * @param ctx request context
-     * @param sessionId
-     * @param requestPayload
-     * @param component
+     * @param sessionId session identifier
+     * @param startSessionRequest
+     * @param componentKey component key
      */
     async start(
             ctx: Context,
             sessionId: string,
-            requestPayload: StartSessionRequest,
-            component: Component
-    ): Promise<ResponsePayload | ErrorResponsePayload> {
-        ctx.logger.info(`Start component ${JSON.stringify(component)} session ${sessionId}`);
+            startSessionRequest: StartSessionRequest,
+            componentKey: string
+    ): Promise<CommandResponse> {
+        ctx.logger.info(`Start component ${componentKey} session ${sessionId}`);
 
-        return {
-            sessionId,
-            region: requestPayload.componentParams.region,
-            type: requestPayload.componentParams.type,
-            componentKey: 'componentKeyValue'
+        const componentCommand = <Command>{
+            cmdId: this.generateCommandId(sessionId),
+            type: CommandType.START,
+            payload: {
+                componentKey,
+                componentRequest: {
+                    sessionId,
+                    callParams: startSessionRequest.callParams,
+                    callLoginParams: startSessionRequest.callLoginParams
+                }
+            }
         };
+
+        if (startSessionRequest.componentParams.type === ComponentType.Jibri) {
+            const componentMetadata = startSessionRequest.componentParams.metadata as JibriMetadata;
+
+            componentCommand.payload.componentRequest.sinkType = componentMetadata.sinkType;
+            componentCommand.payload.componentRequest.sipClientParams = componentMetadata.sipClientParams;
+        } else {
+            const componentMetadata = startSessionRequest.componentParams.metadata as JigasiMetadata;
+
+            componentCommand.payload.componentRequest.from = componentMetadata.from;
+            componentCommand.payload.componentRequest.to = componentMetadata.to;
+        }
+
+        return await this.commandService.sendCommand(ctx, componentKey, componentCommand);
     }
 
     /**
      * Stops the (jibri, jigasi etc) session
      * @param ctx request context
-     * @param session
+     * @param sessionId session identifier
+     * @param componentKey component key
      */
     async stop(
             ctx: Context,
-            session: Session
-    ): Promise<ResponsePayload | ErrorResponsePayload> {
-        ctx.logger.info(`Stop component ${session.componentType} session ${session.sessionId}`);
+            sessionId: string,
+            componentKey: string
+    ): Promise<CommandResponse> {
+        ctx.logger.info(`Stop component ${componentKey} session ${sessionId}`);
 
-        return {
-            sessionId: session.sessionId,
-            region: session.region,
-            type: session.componentType,
-            componentKey: session.componentKey
+        const componentCommand = <Command>{
+            cmdId: this.generateCommandId(sessionId),
+            type: CommandType.STOP,
+            payload: {
+                componentKey
+            }
         };
+
+        return await this.commandService.sendCommand(ctx, componentKey, componentCommand);
+    }
+
+    /**
+     * Generates an unique command id, which incorporates the session id, for easier debugging
+     * @param sessionId
+     * @private
+     */
+    private generateCommandId(sessionId: string): string {
+        return `${sessionId}_${shortid()}`;
     }
 
     /**
