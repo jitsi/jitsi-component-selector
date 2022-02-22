@@ -37,7 +37,7 @@ export enum ErrorType {
     CONNECTION_ERROR = 'connection.error',
 }
 
-export interface ErrorResponsePayload {
+export interface CommandErrorResponsePayload {
     componentKey: string;
     errorKey: ErrorType;
     errorMessage: string;
@@ -50,14 +50,14 @@ export enum CommandResponseType {
 
 export interface CommandResponsePayload {
     componentKey: string;
-    sipUsername: string;
+    metadata?: any;
 }
 
 export interface CommandResponse {
     cmdId: string;
     type: CommandType;
     responseType: CommandResponseType;
-    payload?: CommandResponsePayload | ErrorResponsePayload;
+    payload?: CommandResponsePayload | CommandErrorResponsePayload;
 }
 
 export interface CommandServiceOptions {
@@ -92,7 +92,7 @@ export default class CommandService {
         opts: Partial<CommandServiceOptions> = {}
     ) {
         this.wsServer = wsServer;
-        this.requestsTimeout = opts.requestsTimeout || 5000;
+        this.requestsTimeout = opts.requestsTimeout || 10000;
 
         const prefix = opts.key || 'jitsi-commands';
 
@@ -307,13 +307,13 @@ export default class CommandService {
                     command,
                     this.withTimeout(
                         (response: CommandResponse) => {
-                            ctx.logger.info(`Got response for local command ${command.type} from socket ${socket}, `
-                                + `response ${JSON.stringify(response)}`);
+                            ctx.logger.info(`Got response for local command ${command.type} from socket `
+                                + `${socket.id}, response ${JSON.stringify(response)}`);
                             resolve(onSuccess(response));
                         },
                         () => {
-                            ctx.logger.error(`Timeout while sending local command ${command.type} to socket ${socket}, `
-                                + `command ${JSON.stringify(command)}`);
+                            ctx.logger.error(`Timeout while sending local command ${command.type} to socket `
+                                + `${socket.id}, command ${JSON.stringify(command)}`);
                             reject({
                                 name: ErrorType.TIMEOUT,
                                 message: `Timeout while sending local command, after ${this.requestsTimeout} ms`
