@@ -92,7 +92,10 @@ const websocketServer = new WsServer({
 // configure the rest server dependencies
 const commandService = new CommandService(websocketServer, pubClient, subClient);
 const componentService = new ComponentService({ componentRepository,
-    commandService });
+    commandService,
+    sipAddressPattern: config.SipAddressPattern,
+    sipJibriInboundEmail: config.SipJibriInboundEmail,
+    sipJibriOutboundEmail: config.SipJibriOutboundEmail });
 const selectionService = new SelectionService({ componentRepository,
     candidateTTLSec: config.CandidateTTLSec });
 const sessionsService = new SessionsService({ sessionRepository,

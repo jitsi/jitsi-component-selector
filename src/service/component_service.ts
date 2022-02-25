@@ -1,10 +1,22 @@
 import shortid from 'shortid';
 
-import { ComponentType, JibriMetadata, JigasiMetadata, StartSessionRequest } from '../handlers/session_handler';
+import {
+    ComponentType,
+    JibriMetadata,
+    JibriSinkType,
+    JigasiMetadata, SipJibriMetadata,
+    StartSessionRequest
+} from '../handlers/session_handler';
 import ComponentRepository from '../repository/component_repository';
 import { Context } from '../util/context';
 
-import CommandService, { Command, CommandResponse, CommandType } from './command_service';
+import CommandService, {
+    Command,
+    CommandResponse,
+    CommandType,
+    JibriRequest,
+    JigasiRequest, SipJibriRequest
+} from './command_service';
 import { ComponentMetadata, ComponentState, ComponentStatus } from './component_tracker';
 import { Component } from './selection_service';
 
@@ -23,7 +35,10 @@ export interface ComponentInfo {
 
 export interface ComponentServiceOptions {
     componentRepository: ComponentRepository,
-    commandService: CommandService
+    commandService: CommandService,
+    sipJibriInboundEmail: string,
+    sipJibriOutboundEmail: string,
+    sipAddressPattern: string
 }
 
 /**
@@ -33,6 +48,9 @@ export default class ComponentService {
 
     private componentRepository: ComponentRepository;
     private commandService: CommandService;
+    private readonly sipJibriInboundEmail: string;
+    private readonly sipJibriOutboundEmail: string;
+    private readonly sipAddressPattern: string;
 
     /**
      * Constructor
@@ -41,6 +59,9 @@ export default class ComponentService {
     constructor(options: ComponentServiceOptions) {
         this.componentRepository = options.componentRepository;
         this.commandService = options.commandService;
+        this.sipJibriInboundEmail = options.sipJibriInboundEmail;
+        this.sipJibriOutboundEmail = options.sipJibriOutboundEmail;
+        this.sipAddressPattern = options.sipAddressPattern;
     }
 
     /**
@@ -59,31 +80,106 @@ export default class ComponentService {
         ctx.logger.info(`Start component ${componentKey} session ${sessionId}`);
 
         const componentCommand = <Command>{
-            cmdId: this.generateCommandId(sessionId),
+            cmdId: ComponentService.generateCommandId(sessionId),
             type: CommandType.START,
             payload: {
                 componentKey,
-                componentRequest: {
-                    sessionId,
-                    callParams: startSessionRequest.callParams,
-                    callLoginParams: startSessionRequest.callLoginParams
-                }
+                componentRequest: {}
             }
         };
 
         if (startSessionRequest.componentParams.type === ComponentType.Jibri) {
             const componentMetadata = startSessionRequest.componentParams.metadata as JibriMetadata;
+            let componentRequest: JibriRequest;
 
-            componentCommand.payload.componentRequest.sinkType = componentMetadata.sinkType;
-            componentCommand.payload.componentRequest.sipClientParams = componentMetadata.sipClientParams;
+            if (componentMetadata.sinkType === JibriSinkType.FILE) {
+                componentRequest = ComponentService
+                    .mapToBasicComponentRequest(sessionId, startSessionRequest) as JibriRequest;
+                componentRequest.sinkType = JibriSinkType.FILE;
+                componentRequest.serviceParams = componentMetadata.serviceParams;
+            } else if (componentMetadata.sinkType === JibriSinkType.STREAM) {
+                componentRequest = ComponentService
+                    .mapToBasicComponentRequest(sessionId, startSessionRequest) as JibriRequest;
+                componentRequest.sinkType = JibriSinkType.STREAM;
+                componentRequest.youTubeStreamKey = componentMetadata.youTubeStreamKey;
+            }
+            componentCommand.payload.componentRequest = componentRequest;
+
+        } else if (startSessionRequest.componentParams.type === ComponentType.SipJibri) {
+            componentCommand.payload.componentRequest = this.mapToSipJibriComponentRequest(sessionId, componentKey,
+                startSessionRequest);
         } else {
             const componentMetadata = startSessionRequest.componentParams.metadata as JigasiMetadata;
+            const componentRequest: JigasiRequest = ComponentService
+                .mapToBasicComponentRequest(sessionId, startSessionRequest) as JigasiRequest;
 
-            componentCommand.payload.componentRequest.from = componentMetadata.from;
-            componentCommand.payload.componentRequest.to = componentMetadata.to;
+            componentRequest.sipCallParams = componentMetadata.sipCallParams;
+            componentCommand.payload.componentRequest = componentRequest;
         }
 
         return await this.commandService.sendCommand(ctx, componentKey, componentCommand);
+    }
+
+    /**
+     * Maps the start session request to a basic component request
+     * @param sessionId
+     * @param startSessionRequest
+     * @private
+     */
+    private static mapToBasicComponentRequest(sessionId: string,
+            startSessionRequest:StartSessionRequest): any {
+        return {
+            sessionId,
+            callParams: startSessionRequest.callParams,
+            callLoginParams: startSessionRequest.callLoginParams
+        }
+    }
+
+    /**
+     * Maps the startSessionRequest to a sip jibri request
+     * @param sessionId
+     * @param componentKey
+     * @param startSessionRequest
+     * @private
+     */
+    private mapToSipJibriComponentRequest(sessionId: string,
+            componentKey: string,
+            startSessionRequest: StartSessionRequest): SipJibriRequest {
+        const componentRequest:SipJibriRequest = ComponentService
+            .mapToBasicComponentRequest(sessionId, startSessionRequest) as SipJibriRequest;
+        const componentMetadata = startSessionRequest.componentParams.metadata as SipJibriMetadata;
+
+        if (!componentMetadata.sipClientParams) {
+            return componentRequest;
+        }
+
+        componentRequest.sinkType = 'GATEWAY';
+        if (componentMetadata.sipClientParams.autoAnswer) {
+            // Inbound
+            const callerDisplayName = componentMetadata.sipClientParams.displayName;
+
+            // SIPJibri will join the web conference using as display name the name of the caller
+            componentRequest.callParams.displayName = callerDisplayName;
+            componentRequest.callParams.email = this.sipJibriInboundEmail;
+            componentRequest.callParams.callStatsUsernameOverride = `${callerDisplayName} (inbound)`;
+            componentRequest.sipClientParams = componentMetadata.sipClientParams;
+        } else {
+            // Outbound
+            let calleeDisplayName = componentMetadata.sipClientParams.sipAddress;
+
+            if (new RegExp(this.sipAddressPattern).test(calleeDisplayName)) {
+                calleeDisplayName = calleeDisplayName.match(this.sipAddressPattern)[2];
+            }
+
+            // SIPJibri will join the web conference using as display name
+            // the name of the person invited to join the meeting
+            componentRequest.callParams.displayName = calleeDisplayName;
+            componentRequest.callParams.email = this.sipJibriOutboundEmail;
+            componentRequest.callParams.callStatsUsernameOverride = `${calleeDisplayName} (outbound)`;
+            componentRequest.sipClientParams = componentMetadata.sipClientParams;
+        }
+
+        return componentRequest;
     }
 
     /**
@@ -100,7 +196,7 @@ export default class ComponentService {
         ctx.logger.info(`Stop component ${componentKey} session ${sessionId}`);
 
         const componentCommand = <Command>{
-            cmdId: this.generateCommandId(sessionId),
+            cmdId: ComponentService.generateCommandId(sessionId),
             type: CommandType.STOP,
             payload: {
                 componentKey
@@ -115,7 +211,7 @@ export default class ComponentService {
      * @param sessionId
      * @private
      */
-    private generateCommandId(sessionId: string): string {
+    private static generateCommandId(sessionId: string): string {
         return `${sessionId}_${shortid()}`;
     }
 

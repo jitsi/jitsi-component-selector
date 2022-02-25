@@ -309,7 +309,7 @@ export default class ComponentRepository {
             }
             scanCounts++;
         } while (cursor !== '0');
-        ctx.logger.debug(`Valid components states: ${states}`);
+        ctx.logger.debug(`Valid components states: ${JSON.stringify(states)}`);
 
         const end = process.hrtime(start);
 
