@@ -31,7 +31,8 @@ const env = envalid.cleanEnv(process.env, {
     ASAP_PUB_KEY_TTL: envalid.num({ default: 3600 }),
     SYSTEM_ASAP_PUB_KEY_BASE_URL: envalid.str(),
     SYSTEM_ASAP_JWT_AUD: envalid.str(),
-    SYSTEM_ASAP_JWT_ACCEPTED_HOOK_ISS: envalid.str()
+    SYSTEM_ASAP_JWT_ACCEPTED_HOOK_ISS: envalid.str(),
+    CANDIDATE_TTL_SEC: envalid.num({ default: 120 })
 });
 
 export default {
@@ -49,5 +50,6 @@ export default {
     AsapPubKeyTTL: env.ASAP_PUB_KEY_TTL,
     SystemAsapPubKeyBaseUrl: env.SYSTEM_ASAP_PUB_KEY_BASE_URL,
     SystemAsapJwtAcceptedAud: env.SYSTEM_ASAP_JWT_AUD,
-    SystemAsapJwtAcceptedHookIss: env.SYSTEM_ASAP_JWT_ACCEPTED_HOOK_ISS.split(',')
+    SystemAsapJwtAcceptedHookIss: env.SYSTEM_ASAP_JWT_ACCEPTED_HOOK_ISS.split(','),
+    CandidateTTLSec: env.CANDIDATE_TTL_SEC
 };

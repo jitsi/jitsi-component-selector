@@ -1,30 +1,55 @@
+import { ComponentType } from '../handlers/session_handler';
 import ComponentRepository from '../repository/component_repository';
+import ComponentUtils from '../util/component_utils';
 import { Context } from '../util/context';
 
-export enum InstanceStatusState {
+import { Component } from './selection_service';
+
+export enum JibriStatusState {
     Idle = 'IDLE',
     Busy = 'BUSY',
     Expired = 'EXPIRED',
     SidecarRunning = 'SIDECAR_RUNNING',
 }
 
-export enum InstanceHealthState {
+export enum JibriHealthState {
     Healthy = 'HEALTHY',
     Unhealthy = 'UNHEALTHY',
     Unknown = 'UNKNOWN',
 }
 
+export interface JibriStatus {
+    status: {
+        busyStatus: JibriStatusState;
+        health: JibriHealthState;
+    }
+}
+
+export interface JigasiStatus {
+    stressLevel: number;
+
+    // muc_clients_configured: number;
+    // muc_clients_connected: number;
+    conferences: number;
+    participants: number;
+
+    // largest_conference: number;
+    gracefulShutdown: boolean;
+}
+
 export interface ComponentStatus {
-    busyStatus: InstanceStatusState;
-    health: InstanceHealthState;
+    jibriStatus?: JibriStatus;
+    jigasiStatus?: JigasiStatus;
 }
 
 export interface ComponentDetails {
     componentId: string;
     hostname: string;
     componentKey: string;
+    componentType: any;
     cloud?: string;
     region: string;
+    environment: string;
     group: string;
     name?: string;
     version?: string;
@@ -35,35 +60,44 @@ export interface ComponentDetails {
 /**
  "report": {
      "component": {
-        "componentId": "10.42.183.97",
-        "hostname": "sip-jibri-42-183-97"
-      },
+        "componentId": "10.42.183.93",
+        "hostname": "jibri-42-183-93",
+        "componentKey": "jibri-42-183-93",
+        "environment": "stage-8x8",
+        "region": "us-phoenix-1",
+        "componentType": "JIBRI",
+        "group": "stage-8x8-us-phoenix-1-JibriCustomGroup"
+     },
      "stats": {
         "status": {
-          "busyStatus": "IDLE",
-          "health": {
-            "healthStatus": "HEALTHY",
-            "details": {}
-          }
+           "jibriStatus": {
+              "status": {
+                 "busyStatus": "IDLE",
+                 "health": {
+                    "healthStatus": "HEALTHY",
+                    "details": {
+
+                    }
+                 }
+              }
+           }
         }
      },
-     "timestamp": 1612521271901
+     "timestamp":1645704570825
  }
  */
 export interface StatsReport {
     component: ComponentDetails;
     timestamp?: number;
-    stats?: {
-        status: ComponentStatus;
-    };
+    stats?: ComponentStatus;
 }
 
 export interface ComponentMetadata {
-    group: string;
     publicIp?: string;
     privateIp?: string;
     version?: string;
     name?: string;
+
     [key: string]: string;
 }
 
@@ -71,9 +105,10 @@ export interface ComponentState {
     componentId: string;
     hostname: string;
     componentKey: string;
+    type: ComponentType;
     region: string;
-    group:string;
-    status: ComponentStatus;
+    environment: string;
+    stats: ComponentStatus;
     timestamp?: number;
     metadata: ComponentMetadata;
 }
@@ -108,21 +143,33 @@ export class ComponentTracker {
             hostname: report.component.hostname,
             componentKey: report.component.componentKey,
             timestamp: report.timestamp,
+            environment: report.component.environment,
             region: report.component.region,
-            group: report.component.group,
-            status: <ComponentStatus>report.stats.status,
+            type: report.component.componentType,
+            stats: <ComponentStatus>report.stats,
             metadata: <ComponentMetadata>{ ...report.component }
         };
 
-        if (!componentState.status) {
+        if (!componentState.stats) {
             // this can happen either at provisioning when the component is not yet up,
             // or when the sidecar does not see the component
             ctx.logger.info(`Empty stats report, as it does not include component stats: ${JSON.stringify(report)}`);
 
-            componentState.status = {
-                busyStatus: InstanceStatusState.SidecarRunning,
-                health: InstanceHealthState.Unknown
-            };
+            switch (report.component.componentType) {
+            case ComponentType.Jibri:
+            case ComponentType.SipJibri:
+                componentState.stats = {
+                    jibriStatus: {
+                        status: {
+                            busyStatus: JibriStatusState.SidecarRunning,
+                            health: JibriHealthState.Unknown
+                        }
+                    }
+                };
+                break;
+            case ComponentType.Jigasi:
+                break;
+            }
         }
 
         const componentStateTimestamp = Number(componentState.timestamp);
@@ -144,18 +191,111 @@ export class ComponentTracker {
      * @param ctx
      * @param componentState
      */
-    private async handleComponentState(ctx: Context, componentState: ComponentState) : Promise<void> {
-        // const instanceKey = componentState.instanceKey;
+    private async handleComponentState(ctx: Context, componentState: ComponentState): Promise<void> {
+        const component: Component = {
+            key: componentState.componentKey,
+            type: componentState.type,
+            region: componentState.region,
+            environment: componentState.environment
+        }
 
-        switch (componentState.status.busyStatus) {
-        case InstanceStatusState.Idle:
-            //   await this.componentRepository.candidate(ctx, { instanceKey }, componentState.timestamp);
-            break;
-        case InstanceStatusState.Busy:
-        case InstanceStatusState.Expired:
-        case InstanceStatusState.SidecarRunning:
-            //  await this.componentRepository.remove(ctx, { instanceKey });
-            break;
+        if (componentState.stats && componentState.stats.jibriStatus) {
+            await this.handleJibriState(ctx, component, componentState);
+        } else if (componentState.stats && componentState.stats.jigasiStatus) {
+            await this.handleJigasiState(ctx, component, componentState);
         }
     }
+
+    /**
+     * Handle Jibri state
+     * @param ctx
+     * @param component
+     * @param componentState
+     */
+    private async handleJibriState(
+            ctx: Context, component: Component, componentState: ComponentState): Promise<void> {
+        if (componentState.stats.jibriStatus.status
+            && componentState.stats.jibriStatus.status.busyStatus) {
+            switch (componentState.stats.jibriStatus.status.busyStatus) {
+            case JibriStatusState.Idle:
+                await this.markAsCandidate(ctx, component, componentState);
+                break;
+            case JibriStatusState.Busy:
+            case JibriStatusState.Expired:
+            case JibriStatusState.SidecarRunning:
+                await this.removeCandidate(ctx, component);
+                break;
+            }
+        }
+    }
+
+    /**
+     * Handle Jigasi state
+     * @param ctx
+     * @param component
+     * @param componentState
+     */
+    private async handleJigasiState(
+            ctx: Context, component: Component, componentState: ComponentState): Promise<void> {
+        if (componentState.stats.jigasiStatus.gracefulShutdown) {
+            await this.removeCandidate(ctx, component);
+        } else {
+            await this.markAsCandidate(ctx, component, componentState);
+        }
+    }
+
+    /**
+     * Mark component as a candidate for selection
+     * @param ctx request context
+     * @param component
+     * @param componentState
+     */
+    async markAsCandidate(ctx: Context, component: Component, componentState: ComponentState): Promise<void> {
+        if (!component || !component.key) {
+            ctx.logger.error(`Component ${JSON.stringify(component)} was not marked as a candidate, as it has no key `);
+
+            return;
+        }
+        const componentScore = ComponentUtils.calculateScore(componentState);
+
+        const response = await this.componentRepository.updateCandidate(
+            ctx, componentScore, component);
+
+        if (response && response === 1) {
+            ctx.logger.info(`Component ${JSON.stringify(component)} was added to the candidates pool`);
+        } else if (response === 0) {
+            ctx.logger.info(
+                `Candidate ${JSON.stringify(component)} was updated with the ${componentScore} score `);
+        } else {
+            ctx.logger.info(`Component ${JSON.stringify(component)} was not added to the candidates pool.'
+                + 'Either the script had an error or the component is part of the 'in progress' pool `);
+        }
+    }
+
+    /**
+     * Remove component from the candidates
+     * @param ctx request context
+     * @param component
+     */
+    async removeCandidate(ctx: Context, component: Component): Promise<void> {
+        const result = await this.componentRepository.removeCandidate(ctx, component);
+
+        if (result && result.length > 0 && (result[0] !== 0 || result[1] !== 0)) {
+            ctx.logger.info(`Component ${component.key} was removed from one of the pools`, {
+                removedFromCandidatesPool: result[0] !== 0,
+                removedFromInProgressPool: result[1] !== 0
+            });
+            if (result[0] === 1 && result[1] === 1) {
+                // TODO poolErrorTotalCounter.inc({ error: COMPONENT_IN_BOTH_POOLS });
+                // This should never happen
+                // A component can be in only one pool at a time, it is either a candidate
+                // or is marked as 'in progress' - this is the case of jibri for example that is of type 'singleUse'
+                ctx.logger.error(
+                    `Component was part of both pools 'candidates & in progress' 
+                           + 'in the same time ${JSON.stringify(component)}`
+                );
+            }
+        }
+    }
+
 }

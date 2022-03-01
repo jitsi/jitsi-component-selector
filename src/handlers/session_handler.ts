@@ -4,6 +4,7 @@ import SessionsService, { Session, SessionStatus } from '../service/session_serv
 
 export enum ComponentType {
     Jibri = 'JIBRI',
+    SipJibri = 'SIP-JIBRI',
     Jigasi = 'JIGASI',
 }
 
@@ -107,6 +108,8 @@ export interface JigasiMetadata {
 export interface ComponentParams {
     type: ComponentType;
     region: string;
+    environment: string;
+    excludedComponentKeys?: string[];
     metadata?: JibriMetadata | JigasiMetadata;
 }
 

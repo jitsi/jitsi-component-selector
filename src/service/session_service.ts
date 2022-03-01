@@ -31,11 +31,15 @@ export interface Session {
     componentKey: string;
     componentType: ComponentType;
     region: string;
+    environment: string;
     status: SessionStatus;
+    errorKey?: any;
+    errorMessage?: any;
 }
 
 export interface SessionResponsePayload {
     sessionId: string;
+    environment: string;
     region: string;
     type: ComponentType;
     componentKey: string;
@@ -52,9 +56,10 @@ export enum SessionErrorType {
 
 export interface SessionErrorResponsePayload {
     sessionId: string;
+    environment: string;
     region: string;
     type: ComponentType;
-    componentKey: string;
+    componentKey?: string;
     errorKey: SessionErrorType;
     errorMessage: string;
 }
@@ -99,14 +104,41 @@ export default class SessionsService {
 
         const component : Component = await this.selectionService.selectComponent(
             ctx,
-            startSessionRequest
+            startSessionRequest.componentParams
         );
 
-        // todo component not found
-        ctx.logger.info(`Selected component ${JSON.stringify(component)} for session ${sessionId}`);
+        if (!component || !component.key) {
+            return {
+                sessionId,
+                environment: startSessionRequest.componentParams.environment,
+                region: startSessionRequest.componentParams.region,
+                type: startSessionRequest.componentParams.type,
+                errorKey: SessionErrorType.UNAVAILABLE_COMPONENTS,
+                errorMessage: 'No available candidates, please try again'
+            };
+        }
 
-        const commandResponse:CommandResponse = await this.componentService.start(ctx,
-            sessionId, startSessionRequest, component.key);
+        ctx.logger.info(`Selected component ${JSON.stringify(component)} for session ${sessionId}`);
+        let commandResponse: CommandResponse;
+
+        try {
+            commandResponse = await this.componentService.start(ctx,
+                sessionId, startSessionRequest, component.key);
+        } catch (error) {
+            ctx.logger.info(`Unexpected error for ${component.key}`, {
+                error
+            });
+            sessionResponsePayload = {
+                sessionId,
+                type: startSessionRequest.componentParams.type,
+                environment: startSessionRequest.componentParams.environment,
+                region: startSessionRequest.componentParams.region,
+                errorKey: error.name ? error.name : SessionErrorType.INTERNAL_ERROR,
+                errorMessage: error.message
+            }
+
+            return sessionResponsePayload;
+        }
 
         if (commandResponse && commandResponse.responseType === CommandResponseType.SUCCESS) {
             ctx.logger.info(`Done, started component ${component.key} for session ${sessionId}`);
@@ -117,6 +149,7 @@ export default class SessionsService {
             sessionResponsePayload = {
                 sessionId,
                 type: startSessionRequest.componentParams.type,
+                environment: startSessionRequest.componentParams.environment,
                 region: startSessionRequest.componentParams.region,
                 componentKey: component.key,
                 metadata: commandResponsePayload.metadata
@@ -124,14 +157,19 @@ export default class SessionsService {
         } else {
             ctx.logger.info(`Failed to start component ${component.key} for session ${sessionId}`);
 
-            // TODO add handleStartFailure() - remove from in progress pool
             const commandErrorResponse = commandResponse.payload as CommandErrorResponsePayload;
+
+            // TODO handle removeFromInProgress inside handleStartFailure method
+            // the method would have more then 4 params - not allowed right now
+            await this.handleStartFailure(ctx, sessionId, startSessionRequest, commandErrorResponse);
+            await this.componentService.removeFromInProgress(ctx, component);
 
             sessionResponsePayload = {
                 sessionId,
                 type: startSessionRequest.componentParams.type,
+                environment: startSessionRequest.componentParams.environment,
                 region: startSessionRequest.componentParams.region,
-                componentKey: component.key,
+                componentKey: commandErrorResponse.componentKey,
                 errorKey: commandErrorResponse.errorKey as unknown as SessionErrorType,
                 errorMessage: commandErrorResponse.errorMessage
             }
@@ -159,7 +197,35 @@ export default class SessionsService {
             callName: startSessionRequest.callParams.callUrlInfo.callName,
             componentKey: commandResponsePayload.componentKey,
             componentType: startSessionRequest.componentParams.type,
+            environment: startSessionRequest.componentParams.environment,
             region: startSessionRequest.componentParams.region
+        };
+
+        await this.sessionRepository.upsertSession(ctx, session);
+    }
+
+    /**
+     * Handles a failed start session result, by updating session info
+     * @param ctx
+     * @param sessionId
+     * @param startSessionRequest
+     * @param commandResponse
+     * @private
+     */
+    private async handleStartFailure(ctx: Context,
+            sessionId: string,
+            startSessionRequest: StartSessionRequest,
+            commandResponse : CommandErrorResponsePayload) {
+        const session = <Session>{
+            sessionId,
+            baseUrl: startSessionRequest.callParams.callUrlInfo.baseUrl,
+            callName: startSessionRequest.callParams.callUrlInfo.callName,
+            componentKey: commandResponse.componentKey,
+            componentType: startSessionRequest.componentParams.type,
+            environment: startSessionRequest.componentParams.environment,
+            region: startSessionRequest.componentParams.region,
+            errorKey: commandResponse.errorKey,
+            errorMessage: commandResponse.errorMessage
         };
 
         await this.sessionRepository.upsertSession(ctx, session);
@@ -196,6 +262,7 @@ export default class SessionsService {
             sessionResponsePayload = {
                 sessionId: session.sessionId,
                 type: session.componentType,
+                environment: session.environment,
                 region: session.region,
                 componentKey: session.componentKey,
                 metadata: commandResponsePayload.metadata
@@ -210,6 +277,7 @@ export default class SessionsService {
             sessionResponsePayload = {
                 sessionId: session.sessionId,
                 type: session.componentType,
+                environment: session.environment,
                 region: session.region,
                 componentKey: session.componentKey,
                 errorKey: commandErrorResponse.errorKey as unknown as SessionErrorType,

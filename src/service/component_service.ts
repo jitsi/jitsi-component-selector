@@ -6,6 +6,7 @@ import { Context } from '../util/context';
 
 import CommandService, { Command, CommandResponse, CommandType } from './command_service';
 import { ComponentMetadata, ComponentState, ComponentStatus } from './component_tracker';
+import { Component } from './selection_service';
 
 export interface ComponentInfo {
     componentKey: string;
@@ -136,7 +137,7 @@ export default class ComponentService {
                 hostname: componentState.hostname,
                 componentKey: componentState.componentKey,
                 lastStatusTimestamp: new Date(componentState.timestamp),
-                lastStatus: componentState.status,
+                lastStatus: componentState.stats,
                 metadata: componentState.metadata
             };
 
@@ -146,5 +147,14 @@ export default class ComponentService {
         return componentsInfo;
     }
 
+    /**
+     * Remove component from the in progress pool
+     * @param ctx
+     * @param component
+     */
+    async removeFromInProgress(ctx: Context, component: Component) : Promise<void> {
+        ctx.logger.info(`Removing component ${JSON.stringify(component)} from the in progress pool`);
 
+        return await this.componentRepository.removeFromInProgress(ctx, component);
+    }
 }
