@@ -49,7 +49,8 @@ const sessionRepository = new SessionRepository({
 const componentRepository = new ComponentRepository({
     redisClient,
     redisScanCount: config.RedisScanCount,
-    componentTtlSec: config.ComponentTtlSec
+    componentTtlSec: config.ComponentTtlSec,
+    candidateTtlSec: config.CandidateTTLSec
 });
 
 componentRepository.defineRedisCustomCommands();
@@ -119,6 +120,22 @@ const wsServerCtx = generateNewContext('ws-server');
 
 websocketServer.init(wsServerCtx);
 
+// start background jobs
+
+/**
+ * Cleanup expired components
+ */
+async function cleanupComponents() {
+    const ctx = generateNewContext('cleanup-job');
+
+    try {
+        await componentService.cleanupComponents(ctx);
+    } catch (err) {
+        ctx.logger.error(`Error while cleaning up expired components: ${err}`, { err });
+    }
+    setTimeout(cleanupComponents, config.TrimComponentsIntervalSec * 1000);
+}
+cleanupComponents();
 
 // start the http server
 if (config.ProtectedApi) {

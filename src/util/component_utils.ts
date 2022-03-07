@@ -66,4 +66,16 @@ export default class ComponentUtils {
         return weight;
     }
 
+    /**
+     * Check if the candidate is expired
+     * @param score candidate score
+     * @param candidateTTLSec valid candidate timestamp
+     */
+    public static isExpired(score: number, candidateTTLSec: number): boolean {
+        const candidateTimestamp = score.toString().includes('.') ? score.toString().split('.')[1] : score.toString();
+        const expirationDate = new Date(Number(candidateTimestamp) + (candidateTTLSec * 1000));
+
+        return expirationDate < new Date();
+    }
+
 }

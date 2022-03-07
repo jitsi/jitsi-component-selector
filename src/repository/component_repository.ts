@@ -5,12 +5,14 @@ import path from 'path';
 import { ComponentParams, ComponentType } from '../handlers/session_handler';
 import { ComponentState } from '../service/component_tracker';
 import { Candidate, Component } from '../service/selection_service';
+import ComponentUtils from '../util/component_utils';
 import { Context } from '../util/context';
 
 export interface ComponentServiceOptions {
     redisClient: Redis.Redis;
     redisScanCount: number;
     componentTtlSec: number;
+    candidateTtlSec: number;
 }
 
 /**
@@ -20,6 +22,7 @@ export default class ComponentRepository {
     private redisClient: Redis.Redis;
     private readonly redisScanCount: number;
     private readonly componentTtlSec: number;
+    private readonly candidateTtlSec: number;
 
     /**
      * Constructor
@@ -29,6 +32,7 @@ export default class ComponentRepository {
         this.redisClient = options.redisClient;
         this.redisScanCount = options.redisScanCount;
         this.componentTtlSec = options.componentTtlSec;
+        this.candidateTtlSec = options.candidateTtlSec;
     }
 
     /**
@@ -167,21 +171,32 @@ export default class ComponentRepository {
     }
 
     /**
-     * Return all the candidates from the candidates pool, ordered from the highest to the lowest score
-     * @param ctx
+     * Return all the candidates from the candidates pool
+     * @param ctx request context
      * @param componentParams
      */
     public async getAllCandidatesSorted(ctx: Context, componentParams: ComponentParams): Promise<Array<Candidate>> {
-        const candidates: Array<Candidate> = [];
         const candidatesPoolKey = this.getCandidatesPoolKey(componentParams);
 
+        return await this.getCandidatesFromPool(ctx, candidatesPoolKey);
+    }
+
+    /**
+     * Return all the candidates from the pool, ordered from the highest to the lowest score
+     * @param ctx request context
+     * @param key pool key
+     */
+    private async getCandidatesFromPool(ctx: Context, key: string) : Promise<Array<Candidate>> {
+        const candidates: Array<Candidate> = [];
         const start = process.hrtime();
 
-        const items = await this.redisClient.zrevrange(candidatesPoolKey, 0, -1, 'WITHSCORES');
+        const items = await this.redisClient.zrevrange(key, 0, -1, 'WITHSCORES');
 
         for (let i = 0; i < items.length; i += 2) {
-            candidates.push({ component: JSON.parse(items[i]),
-                score: Number(items[i + 1]) });
+            candidates.push({
+                component: JSON.parse(items[i]),
+                score: Number(items[i + 1])
+            });
         }
 
         const end = process.hrtime(start);
@@ -381,5 +396,79 @@ export default class ComponentRepository {
         );
 
         return componentsStateResponse;
+    }
+
+    /**
+     * Delete expired components from the pool
+     * @param ctx
+     * @param key pool key
+     */
+    async cleanupExpired(ctx: Context, key: string): Promise<void> {
+        const cleanupStart = process.hrtime();
+        const pipeline = this.redisClient.pipeline();
+
+        const candidates: Array<Candidate> = await this.getCandidatesFromPool(ctx, key);
+
+        for (let i = 0; i < candidates.length; i++) {
+            const candidate = candidates[i];
+
+            if (ComponentUtils.isExpired(candidate.score, this.candidateTtlSec)) {
+                pipeline.zrem(key, JSON.stringify(candidate.component));
+            }
+        }
+
+        await pipeline.exec();
+        const cleanupEnd = process.hrtime(cleanupStart);
+
+        ctx.logger.info(
+            `Cleaned up ${pipeline.length} expired components from the ${key} pool in ${
+                (cleanupEnd[0] * 1000) + (cleanupEnd[1] / 1000000)
+            } ms`
+        );
+    }
+
+    /**
+     * Returns candidates and in progress pool keys
+     * @param ctx
+     */
+    async getComponentsPoolKeys(ctx: Context): Promise<Array<string>> {
+        const candidatePoolKeys = await this.getPoolKeys(ctx, 'candidates:*');
+        const inProgressPoolKeys = await this.getPoolKeys(ctx, 'inProgress:*');
+
+        return inProgressPoolKeys.concat(candidatePoolKeys);
+    }
+
+    /**
+    * Returns keys matching pattern
+    * @param ctx
+    * @param pattern
+    */
+    private async getPoolKeys(ctx: Context, pattern: string): Promise<Array<string>> {
+        const poolKeys: Array<string> = [];
+
+        let cursor = '0';
+
+        do {
+            const result = await this.redisClient.scan(
+                cursor,
+                'match',
+                pattern,
+                'count',
+                this.redisScanCount
+            );
+
+            cursor = result[0];
+            if (result[1].length > 0) {
+                result[1].forEach((key: string) => {
+                    poolKeys.push(key);
+                });
+            }
+        } while (cursor !== '0');
+
+        ctx.logger.info(
+            `Retrieved ${poolKeys.length} keys matching pattern ${pattern}`
+        );
+
+        return poolKeys;
     }
 }

@@ -35,7 +35,8 @@ const env = envalid.cleanEnv(process.env, {
     SIP_ADDRESS_PATTERN: envalid.str({ default: '(^sips?:)?(.*)(@.*)' }),
     SIP_JIBRI_INBOUND_EMAIL: envalid.str({ default: 'inbound-sip-jibri@jitsi.net' }),
     SIP_JIBRI_OUTBOUND_EMAIL: envalid.str({ default: 'outbound-sip-jibri@jitsi.net' }),
-    CANDIDATE_TTL_SEC: envalid.num({ default: 120 })
+    CANDIDATE_TTL_SEC: envalid.num({ default: 120 }),
+    TRIM_COMPONENTS_INTERVAL_SEC: envalid.num({ default: 60 })
 });
 
 export default {
@@ -57,5 +58,6 @@ export default {
     SipAddressPattern: env.SIP_ADDRESS_PATTERN,
     SipJibriInboundEmail: env.SIP_JIBRI_INBOUND_EMAIL,
     SipJibriOutboundEmail: env.SIP_JIBRI_OUTBOUND_EMAIL,
-    CandidateTTLSec: env.CANDIDATE_TTL_SEC
+    CandidateTTLSec: env.CANDIDATE_TTL_SEC,
+    TrimComponentsIntervalSec: env.TRIM_COMPONENTS_INTERVAL_SEC
 };
