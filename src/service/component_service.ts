@@ -89,32 +89,16 @@ export default class ComponentService {
         };
 
         if (startSessionRequest.componentParams.type === ComponentType.Jibri) {
-            const componentMetadata = startSessionRequest.componentParams.metadata as JibriMetadata;
-            let componentRequest: JibriRequest;
-
-            if (componentMetadata.sinkType === JibriSinkType.FILE) {
-                componentRequest = ComponentService
-                    .mapToBasicComponentRequest(sessionId, startSessionRequest) as JibriRequest;
-                componentRequest.sinkType = JibriSinkType.FILE;
-                componentRequest.serviceParams = componentMetadata.serviceParams;
-            } else if (componentMetadata.sinkType === JibriSinkType.STREAM) {
-                componentRequest = ComponentService
-                    .mapToBasicComponentRequest(sessionId, startSessionRequest) as JibriRequest;
-                componentRequest.sinkType = JibriSinkType.STREAM;
-                componentRequest.youTubeStreamKey = componentMetadata.youTubeStreamKey;
-            }
-            componentCommand.payload.componentRequest = componentRequest;
-
+            componentCommand.payload.componentRequest = this.mapToJibriComponentRequest(sessionId,
+                startSessionRequest);
         } else if (startSessionRequest.componentParams.type === ComponentType.SipJibri) {
-            componentCommand.payload.componentRequest = this.mapToSipJibriComponentRequest(sessionId, componentKey,
+            componentCommand.payload.componentRequest = this.mapToSipJibriComponentRequest(sessionId,
+                startSessionRequest);
+        } else if (startSessionRequest.componentParams.type === ComponentType.Jigasi) {
+            componentCommand.payload.componentRequest = this.mapToJigasiComponentRequest(sessionId,
                 startSessionRequest);
         } else {
-            const componentMetadata = startSessionRequest.componentParams.metadata as JigasiMetadata;
-            const componentRequest: JigasiRequest = ComponentService
-                .mapToBasicComponentRequest(sessionId, startSessionRequest) as JigasiRequest;
-
-            componentRequest.sipCallParams = componentMetadata.sipCallParams;
-            componentCommand.payload.componentRequest = componentRequest;
+            throw Error(`Unsupported component type ${startSessionRequest.componentParams.type}`)
         }
 
         return await this.commandService.sendCommand(ctx, componentKey, componentCommand);
@@ -136,14 +120,34 @@ export default class ComponentService {
     }
 
     /**
+     * Maps the startSessionRequest to a jibri (recorder, streamer) request
+     * @param sessionId
+     * @param startSessionRequest
+     * @private
+     */
+    private mapToJibriComponentRequest(sessionId: string,
+            startSessionRequest: StartSessionRequest): JibriRequest {
+        const componentMetadata = startSessionRequest.componentParams.metadata as JibriMetadata;
+        const componentRequest: JibriRequest = ComponentService
+            .mapToBasicComponentRequest(sessionId, startSessionRequest) as JibriRequest;
+
+        componentRequest.sinkType = componentMetadata.sinkType;
+        if (componentMetadata.sinkType === JibriSinkType.FILE) {
+            componentRequest.serviceParams = componentMetadata.serviceParams;
+        } else if (componentMetadata.sinkType === JibriSinkType.STREAM) {
+            componentRequest.youTubeStreamKey = componentMetadata.youTubeStreamKey;
+        }
+
+        return componentRequest;
+    }
+
+    /**
      * Maps the startSessionRequest to a sip jibri request
      * @param sessionId
-     * @param componentKey
      * @param startSessionRequest
      * @private
      */
     private mapToSipJibriComponentRequest(sessionId: string,
-            componentKey: string,
             startSessionRequest: StartSessionRequest): SipJibriRequest {
         const componentRequest:SipJibriRequest = ComponentService
             .mapToBasicComponentRequest(sessionId, startSessionRequest) as SipJibriRequest;
@@ -178,6 +182,23 @@ export default class ComponentService {
             componentRequest.callParams.callStatsUsernameOverride = `${calleeDisplayName} (outbound)`;
             componentRequest.sipClientParams = componentMetadata.sipClientParams;
         }
+
+        return componentRequest;
+    }
+
+    /**
+     * Maps the startSessionRequest to a jigasi request
+     * @param sessionId
+     * @param startSessionRequest
+     * @private
+     */
+    private mapToJigasiComponentRequest(sessionId: string,
+            startSessionRequest: StartSessionRequest): JigasiRequest {
+        const componentRequest: JigasiRequest = ComponentService
+            .mapToBasicComponentRequest(sessionId, startSessionRequest) as JigasiRequest;
+        const componentMetadata = startSessionRequest.componentParams.metadata as JigasiMetadata;
+
+        componentRequest.sipCallParams = componentMetadata.sipCallParams;
 
         return componentRequest;
     }

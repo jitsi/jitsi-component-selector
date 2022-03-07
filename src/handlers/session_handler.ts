@@ -173,11 +173,12 @@ export default class SessionsHandler {
 
         const responsePayload = await this.sessionsService.startSession(req.context, requestPayload);
 
-        if (requestPayload) {
-            res.status(200);
+        if (responsePayload.hasOwnProperty('errorKey')) {
+            res.status(400);
             res.send({ responsePayload });
         } else {
-            res.status(400);
+            res.status(200);
+            res.send({ responsePayload });
         }
     }
 
