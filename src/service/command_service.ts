@@ -1,6 +1,7 @@
 import shortid from 'shortid';
 import { SocketId } from 'socket.io-adapter';
 
+import { CallLoginParams, CallParams, SipClientParams, SipCallParams } from '../handlers/session_handler';
 import { Context, generateNewContext } from '../util/context';
 import logger from '../util/logger';
 import WsServer from '../ws_server';
@@ -21,9 +22,32 @@ export enum CommandType {
     STOP = 'STOP'
 }
 
+export interface JibriRequest {
+    sessionId: string;
+    callParams: CallParams,
+    callLoginParams?: CallLoginParams,
+    serviceParams?: any,
+    sinkType: string,
+    youTubeStreamKey?: string
+}
+
+export interface SipJibriRequest {
+    sessionId: string;
+    callParams: CallParams,
+    sipClientParams: SipClientParams,
+    sinkType: 'GATEWAY'
+}
+
+export interface JigasiRequest {
+    sessionId: string;
+    callParams: CallParams,
+    callLoginParams?: CallLoginParams,
+    sipCallParams: SipCallParams
+}
+
 export interface CommandPayload {
     componentKey: string;
-    componentRequest: any;
+    componentRequest: JibriRequest | SipJibriRequest | JigasiRequest;
 }
 
 export interface Command {

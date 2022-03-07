@@ -32,6 +32,9 @@ const env = envalid.cleanEnv(process.env, {
     SYSTEM_ASAP_PUB_KEY_BASE_URL: envalid.str(),
     SYSTEM_ASAP_JWT_AUD: envalid.str(),
     SYSTEM_ASAP_JWT_ACCEPTED_HOOK_ISS: envalid.str(),
+    SIP_ADDRESS_PATTERN: envalid.str({ default: '(^sips?:)?(.*)(@.*)' }),
+    SIP_JIBRI_INBOUND_EMAIL: envalid.str({ default: 'inbound-sip-jibri@jitsi.net' }),
+    SIP_JIBRI_OUTBOUND_EMAIL: envalid.str({ default: 'outbound-sip-jibri@jitsi.net' }),
     CANDIDATE_TTL_SEC: envalid.num({ default: 120 })
 });
 
@@ -51,5 +54,8 @@ export default {
     SystemAsapPubKeyBaseUrl: env.SYSTEM_ASAP_PUB_KEY_BASE_URL,
     SystemAsapJwtAcceptedAud: env.SYSTEM_ASAP_JWT_AUD,
     SystemAsapJwtAcceptedHookIss: env.SYSTEM_ASAP_JWT_ACCEPTED_HOOK_ISS.split(','),
+    SipAddressPattern: env.SIP_ADDRESS_PATTERN,
+    SipJibriInboundEmail: env.SIP_JIBRI_INBOUND_EMAIL,
+    SipJibriOutboundEmail: env.SIP_JIBRI_OUTBOUND_EMAIL,
     CandidateTTLSec: env.CANDIDATE_TTL_SEC
 };

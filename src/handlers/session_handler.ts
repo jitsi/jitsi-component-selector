@@ -52,8 +52,7 @@ export interface CallParams {
 
 export enum JibriSinkType {
     FILE = 'FILE',
-    STREAM = 'STREAM',
-    GATEWAY = 'GATEWAY'
+    STREAM = 'STREAM'
 }
 
 export interface SipClientParams {
@@ -76,6 +75,15 @@ export interface SipClientParams {
     autoAnswer: boolean;
 }
 
+/**
+ * Parameters specific to a sip audio only call handled by Jigasi
+ */
+export interface SipCallParams {
+    from: string;
+    to: string;
+    headers: any;
+}
+
 export interface JibriAppData {
 
     /**
@@ -89,20 +97,21 @@ export interface JibriServiceParams {
     appData?: JibriAppData;
 
     // TODO decide how this should be passed on and supported
-    usageTimeoutMins?: number;
+    usageTimeoutMinutes?: number;
 }
 
 export interface JibriMetadata {
     sinkType: JibriSinkType;
-    sipClientParams?: SipClientParams;
     youTubeStreamKey?: string;
     serviceParams?: JibriServiceParams;
 }
 
+export interface SipJibriMetadata {
+    sipClientParams: SipClientParams;
+}
+
 export interface JigasiMetadata {
-    from: string;
-    to: string;
-    headers: any;
+    sipCallParams: SipCallParams;
 }
 
 export interface ComponentParams {
@@ -110,7 +119,7 @@ export interface ComponentParams {
     region: string;
     environment: string;
     excludedComponentKeys?: string[];
-    metadata?: JibriMetadata | JigasiMetadata;
+    metadata?: JibriMetadata | SipJibriMetadata | JigasiMetadata;
 }
 
 export interface CallLoginParams {
@@ -164,11 +173,12 @@ export default class SessionsHandler {
 
         const responsePayload = await this.sessionsService.startSession(req.context, requestPayload);
 
-        if (requestPayload) {
-            res.status(200);
+        if (responsePayload.hasOwnProperty('errorKey')) {
+            res.status(400);
             res.send({ responsePayload });
         } else {
-            res.status(400);
+            res.status(200);
+            res.send({ responsePayload });
         }
     }
 

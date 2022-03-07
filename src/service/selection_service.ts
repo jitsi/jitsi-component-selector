@@ -45,8 +45,8 @@ export default class SelectionService {
     async selectComponent(ctx: Context,
             componentParams: ComponentParams
     ): Promise<Component> {
-        ctx.logger.info(`Select available ${componentParams.type} from environment ${componentParams.environment}, 
-            region ${componentParams.region}, excluding ${componentParams.excludedComponentKeys}`);
+        ctx.logger.info(`Select available ${componentParams.type} from environment ${componentParams.environment}, `
+            + `region ${componentParams.region}, excluding ${componentParams.excludedComponentKeys}`);
 
         if (ComponentUtils.singleUse(componentParams.type) === true) {
             return await this.selectComponentForSingleUse(ctx, componentParams);
