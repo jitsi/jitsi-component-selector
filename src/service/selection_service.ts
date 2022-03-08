@@ -68,7 +68,7 @@ export default class SelectionService {
         const candidate = await this.componentRepository.selectCandidate(ctx, componentParams, score);
 
         if (candidate) {
-            if (!this.isExpired(candidate)) {
+            if (!ComponentUtils.isExpired(candidate.score, this.candidateTTLSec)) {
                 return candidate.component;
             }
             ctx.logger.info('All the candidates are expired');
@@ -91,7 +91,7 @@ export default class SelectionService {
 
         for (const candidate of candidates) {
             if (!componentParams.excludedComponentKeys.includes(candidate.component.key)
-                && !this.isExpired(candidate)) {
+                && !ComponentUtils.isExpired(candidate.score, this.candidateTTLSec)) {
                 return candidate.component;
             }
             ctx.logger.info('All the candidates are excluded or expired');
@@ -99,19 +99,6 @@ export default class SelectionService {
         ctx.logger.info('No available candidates in pool');
 
         return null;
-    }
-
-    /**
-     * Check if the candidate is expired
-     * @param candidate
-     */
-    private isExpired(candidate: Candidate): boolean {
-        const score: string = candidate.score.toString();
-        const componentTimestamp = score.split('.')[1];
-
-        const expirationDate = new Date(Date.now() - (this.candidateTTLSec * 1000)).getTime();
-
-        return Date.parse(componentTimestamp) < expirationDate;
     }
 
 }

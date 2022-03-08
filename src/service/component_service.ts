@@ -274,4 +274,17 @@ export default class ComponentService {
 
         return await this.componentRepository.removeFromInProgress(ctx, component);
     }
+
+    /**
+     * Cleanup expired components from the candidates and in progress pools
+     * @param ctx
+     */
+    async cleanupComponents(ctx: Context) {
+        const componentKeys = await this.componentRepository.getComponentsPoolKeys(ctx);
+
+        for (const key of componentKeys) {
+            ctx.logger.info(` Cleanup components pool ${key}`);
+            await this.componentRepository.cleanupExpired(ctx, key);
+        }
+    }
 }
