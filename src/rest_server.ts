@@ -138,6 +138,21 @@ export default class RestServer {
         );
 
         app.post(
+            '/jitsi-component-selector/sessions/invite',
+            async (
+                    req: express.Request,
+                    res: express.Response,
+                    next: express.NextFunction
+            ) => {
+                try {
+                    await this.sessionsHandler.bulkInvite(req, res);
+                } catch (err) {
+                    next(err);
+                }
+            }
+        );
+
+        app.post(
       '/jitsi-component-selector/sessions/stop',
       async (
               req: express.Request,

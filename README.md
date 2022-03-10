@@ -68,8 +68,7 @@ curl --request POST \
 		"callUrlInfo": {
 			"baseUrl": "https://somedomain.com",
 			"callName": "somemeeting"
-		},
-		"displayName": "Callee"
+		}
 	},
 	"componentParams": {
 		"type": "SIP-JIBRI",
@@ -83,5 +82,25 @@ curl --request POST \
 			}
 		}
 	}
+}'
+```
+
+### Send a bulk invite for SIP-Jibris
+
+```
+curl --request POST \
+--url http://localhost:8015/jitsi-component-selector/sessions/start \
+--header 'Content-Type: application/json' \
+--data '{
+	"callParams": {
+		"callUrlInfo": {
+			"baseUrl": "https://somedomain.com",
+			"callName": "somemeeting"
+		}
+	},
+	"sipClientParams": {
+         "sipAddress": ["sip:callee@calleesipprovider.com"],
+         "displayName": "Caller"
+    }
 }'
 ```

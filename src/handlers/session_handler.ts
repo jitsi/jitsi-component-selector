@@ -75,12 +75,32 @@ export interface SipClientParams {
     autoAnswer: boolean;
 }
 
+export interface BulkInviteSipClientParams {
+
+    /**
+     * The SIP addresses we'll be connecting to
+     */
+    sipAddress: string[];
+
+    /**
+     * The display name we'll use for the web conference
+     * in the pjsua call
+     */
+    displayName: string;
+}
+
 /**
  * Parameters specific to a sip audio only call handled by Jigasi
  */
 export interface SipCallParams {
     from: string;
     to: string;
+    headers: any;
+}
+
+export interface BulkInviteSipCallParams {
+    from: string;
+    to: string[];
     headers: any;
 }
 
@@ -131,12 +151,19 @@ export interface CallLoginParams {
 
 export interface StartSessionRequest {
     callParams: CallParams;
-    callLoginParams: CallLoginParams
+    callLoginParams?: CallLoginParams
     componentParams: ComponentParams;
 }
 
 export interface StopSessionRequest {
     sessionId: string;
+}
+
+export interface BulkInviteRequest {
+    callParams: CallParams;
+    componentParams?: ComponentParams;
+    sipClientParams?: BulkInviteSipClientParams;
+    sipCallParams?: BulkInviteSipCallParams;
 }
 
 export interface UpdateSessionRequest {
@@ -147,6 +174,8 @@ export interface UpdateSessionRequest {
 
 export interface SessionsHandlerOptions {
   sessionsService: SessionsService;
+  defaultRegion: string;
+  defaultEnvironment: string;
 }
 
 /**
@@ -154,6 +183,8 @@ export interface SessionsHandlerOptions {
  */
 export default class SessionsHandler {
     private sessionsService: SessionsService;
+    private readonly defaultRegion: string;
+    private readonly defaultEnvironment: string;
 
     /**
      * Constructor
@@ -161,6 +192,8 @@ export default class SessionsHandler {
      */
     constructor(options: SessionsHandlerOptions) {
         this.sessionsService = options.sessionsService;
+        this.defaultRegion = options.defaultRegion;
+        this.defaultEnvironment = options.defaultEnvironment;
     }
 
     /**
@@ -183,6 +216,40 @@ export default class SessionsHandler {
     }
 
     /**
+     * Invites multiple destinations to join the meeting.
+     * This results in multiple sessions being started, one for each destination.
+     * @param req
+     * @param res
+     */
+    async bulkInvite(req: Request, res: Response): Promise<void> {
+        const requestPayload: BulkInviteRequest = req.body;
+        const componentParams = requestPayload.componentParams ? requestPayload.componentParams : {} as ComponentParams;
+
+        // Add defaults to the request's componentParams
+        if (requestPayload.sipClientParams) {
+            componentParams.type = ComponentType.SipJibri;
+        } else if (requestPayload.sipCallParams) {
+            componentParams.type = ComponentType.Jigasi;
+        }
+        componentParams.region = componentParams.region ? componentParams.region : this.defaultRegion;
+        componentParams.environment = componentParams.environment ? componentParams.environment
+            : this.defaultEnvironment;
+
+        requestPayload.componentParams = componentParams;
+
+        // Send invite
+        const responsePayload = await this.sessionsService.bulkInvite(req.context, requestPayload);
+
+        if (responsePayload.hasOwnProperty('errorKey')) {
+            res.status(400);
+            res.send({ responsePayload });
+        } else {
+            res.status(200);
+            res.send({ responsePayload });
+        }
+    }
+
+    /**
      * Stops a (recording, dial-out etc) session for a meeting
      * @param req request
      * @param res response
@@ -192,7 +259,9 @@ export default class SessionsHandler {
 
         const responsePayload = await this.sessionsService.stopSession(req.context, stopSessionRequest);
 
-        if (responsePayload.hasOwnProperty('errorKey')) {
+        if (responsePayload === null) {
+            res.status(404);
+        } else if (responsePayload.hasOwnProperty('errorKey')) {
             res.status(400);
             res.send(responsePayload);
         } else {

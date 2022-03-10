@@ -1,10 +1,14 @@
 import { v4 as uuidv4 } from 'uuid';
 
 import {
+    ComponentParams,
     ComponentType,
+    SipClientParams,
+    SipJibriMetadata,
+    BulkInviteRequest,
     StartSessionRequest,
     StopSessionRequest,
-    UpdateSessionRequest
+    UpdateSessionRequest, SipCallParams, JigasiMetadata
 } from '../handlers/session_handler';
 import SessionRepository from '../repository/session_repository';
 import { Context } from '../util/context';
@@ -177,6 +181,118 @@ export default class SessionsService {
 
         return sessionResponsePayload;
 
+    }
+
+    /**
+     * Invites multiple destinations to join the meeting.
+     * This results in multiple sessions being started, one for each destination.
+     * @param ctx
+     * @param bulkInviteRequest
+     */
+    async bulkInvite(ctx: Context,
+            bulkInviteRequest: BulkInviteRequest
+    ): Promise<any> {
+        const requests: StartSessionRequest[] = this.extractStartSessionRequests(bulkInviteRequest);
+        const successfulInvites = [];
+        const failedInvites = [];
+
+        for (const request of requests) {
+            let destination;
+
+            if (request.componentParams.type === ComponentType.SipJibri) {
+                const metadata = request.componentParams.metadata as SipJibriMetadata;
+
+                destination = metadata.sipClientParams.sipAddress;
+            } else if (request.componentParams.type === ComponentType.Jigasi) {
+                const metadata = request.componentParams.metadata as JigasiMetadata;
+
+                destination = metadata.sipCallParams.to;
+            }
+
+            const response = await this.startSession(ctx, request);
+
+            if (response.hasOwnProperty('errorKey')) {
+                const errorResponse = response as SessionErrorResponsePayload;
+
+                failedInvites.push({
+                    destination,
+                    sessionId: errorResponse.sessionId,
+                    error: {
+                        errorKey: errorResponse.errorKey,
+                        errorMessage: errorResponse.errorMessage
+                    }
+                });
+            } else {
+                const successfulResponse = response as SessionResponsePayload;
+
+                successfulInvites.push({
+                    destination,
+                    sessionId: successfulResponse.sessionId
+                });
+            }
+        }
+
+        return {
+            successfulInvites,
+            failedInvites
+        };
+    }
+
+    /**
+     * Maps the BulkInviteRequest into a list of StartSessionRequest entries
+     * @param bulkInviteRequest
+     * @private
+     */
+    private extractStartSessionRequests(bulkInviteRequest: BulkInviteRequest): StartSessionRequest[] {
+        const requests: StartSessionRequest[] = [];
+
+        if (bulkInviteRequest.componentParams.type === ComponentType.SipJibri) {
+            bulkInviteRequest.sipClientParams.sipAddress.forEach((sipAddress: string) => {
+                const sipClientParams: SipClientParams = {
+                    displayName: bulkInviteRequest.sipClientParams.displayName,
+                    sipAddress,
+                    autoAnswer: false
+                }
+                const componentParams:ComponentParams = {
+                    type: bulkInviteRequest.componentParams.type,
+                    region: bulkInviteRequest.componentParams.region,
+                    environment: bulkInviteRequest.componentParams.environment,
+                    metadata: <SipJibriMetadata>{
+                        sipClientParams
+                    }
+                }
+                const startSessionRequest: StartSessionRequest = {
+                    callParams: bulkInviteRequest.callParams,
+                    componentParams
+                }
+
+                requests.push(startSessionRequest);
+            })
+        } else if (bulkInviteRequest.componentParams.type === ComponentType.Jigasi) {
+            bulkInviteRequest.sipCallParams.to.forEach((to: string) => {
+                const sipCallParams: SipCallParams = {
+                    from: bulkInviteRequest.sipCallParams.from,
+                    to,
+                    headers: bulkInviteRequest.sipCallParams.headers
+                }
+                const componentParams:ComponentParams = {
+                    type: bulkInviteRequest.componentParams.type,
+                    region: bulkInviteRequest.componentParams.region,
+                    environment: bulkInviteRequest.componentParams.environment,
+                    metadata: <JigasiMetadata>{
+                        sipCallParams
+                    }
+                }
+                const startSessionRequest: StartSessionRequest = {
+                    callParams: bulkInviteRequest.callParams,
+                    componentParams
+                }
+
+                requests.push(startSessionRequest);
+            })
+        }
+
+        return requests;
     }
 
     /**

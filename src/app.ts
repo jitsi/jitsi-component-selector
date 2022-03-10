@@ -106,7 +106,9 @@ const restServer = new RestServer({
     app,
     protectedApi: config.ProtectedApi,
     sessionsHandler: new SessionsHandler({
-        sessionsService
+        sessionsService,
+        defaultRegion: config.DefaultRegion,
+        defaultEnvironment: config.DefaultEnvironment
     }),
     componentHandler: new ComponentHandler({
         componentService
