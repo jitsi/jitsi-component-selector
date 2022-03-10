@@ -11,6 +11,7 @@ import RestServer from './rest_server';
 import CommandService from './service/command_service';
 import ComponentService from './service/component_service';
 import { ComponentTracker } from './service/component_tracker';
+import ComponentRequestMapper from './service/mapper/component_request_mapper';
 import SelectionService from './service/selection_service';
 import SessionsService from './service/session_service';
 import { ASAPPubKeyFetcher } from './util/asap';
@@ -92,11 +93,14 @@ const websocketServer = new WsServer({
 
 // configure the rest server dependencies
 const commandService = new CommandService(websocketServer, pubClient, subClient);
-const componentService = new ComponentService({ componentRepository,
-    commandService,
+const componentRequestMapper = new ComponentRequestMapper({
     sipAddressPattern: config.SipAddressPattern,
     sipJibriInboundEmail: config.SipJibriInboundEmail,
-    sipJibriOutboundEmail: config.SipJibriOutboundEmail });
+    sipJibriOutboundEmail: config.SipJibriOutboundEmail
+})
+const componentService = new ComponentService({ componentRepository,
+    commandService,
+    componentRequestMapper });
 const selectionService = new SelectionService({ componentRepository,
     candidateTTLSec: config.CandidateTTLSec });
 const sessionsService = new SessionsService({ sessionRepository,

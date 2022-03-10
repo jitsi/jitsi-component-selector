@@ -2,12 +2,11 @@ import { v4 as uuidv4 } from 'uuid';
 
 import {
     ComponentType,
-    SipClientParams,
     SipJibriMetadata,
     BulkInviteRequest,
     StartSessionRequest,
     StopSessionRequest,
-    UpdateSessionRequest, SipCallParams, JigasiMetadata
+    UpdateSessionRequest, JigasiMetadata
 } from '../handlers/session_handler';
 import SessionRepository from '../repository/session_repository';
 import { Context } from '../util/context';
@@ -19,6 +18,7 @@ import {
     CommandResponseType
 } from './command_service';
 import ComponentService from './component_service';
+import SessionRequestsMapper from './mapper/session_request_mapper';
 import SelectionService, { Component } from './selection_service';
 
 export enum SessionStatus {
@@ -191,7 +191,7 @@ export default class SessionsService {
     async bulkInvite(ctx: Context,
             bulkInviteRequest: BulkInviteRequest
     ): Promise<any> {
-        const requests: StartSessionRequest[] = this.extractStartSessionRequests(bulkInviteRequest);
+        const requests: StartSessionRequest[] = SessionRequestsMapper.mapToStartSessionRequests(bulkInviteRequest);
         const successfulInvites = [];
         const failedInvites = [];
 
@@ -235,53 +235,6 @@ export default class SessionsService {
             successfulInvites,
             failedInvites
         };
-    }
-
-    /**
-     * Maps the BulkInviteRequest into a list of StartSessionRequest entries
-     * @param bulkInviteRequest
-     * @private
-     */
-    private extractStartSessionRequests(bulkInviteRequest: BulkInviteRequest): StartSessionRequest[] {
-        const requests: StartSessionRequest[] = [];
-
-        if (bulkInviteRequest.componentParams.type === ComponentType.SipJibri) {
-            bulkInviteRequest.sipClientParams.sipAddress.forEach((sipAddress: string) => {
-                const sipClientParams: SipClientParams = {
-                    displayName: bulkInviteRequest.sipClientParams.displayName,
-                    sipAddress,
-                    autoAnswer: false
-                }
-                const startSessionRequest: StartSessionRequest = {
-                    callParams: bulkInviteRequest.callParams,
-                    componentParams: bulkInviteRequest.componentParams,
-                    metadata: <SipJibriMetadata>{
-                        sipClientParams
-                    }
-                }
-
-                requests.push(startSessionRequest);
-            })
-        } else if (bulkInviteRequest.componentParams.type === ComponentType.Jigasi) {
-            bulkInviteRequest.sipCallParams.to.forEach((to: string) => {
-                const sipCallParams: SipCallParams = {
-                    from: bulkInviteRequest.sipCallParams.from,
-                    to,
-                    headers: bulkInviteRequest.sipCallParams.headers
-                }
-                const startSessionRequest: StartSessionRequest = {
-                    callParams: bulkInviteRequest.callParams,
-                    componentParams: bulkInviteRequest.componentParams,
-                    metadata: <JigasiMetadata>{
-                        sipCallParams
-                    }
-                }
-
-                requests.push(startSessionRequest);
-            })
-        }
-
-        return requests;
     }
 
     /**
