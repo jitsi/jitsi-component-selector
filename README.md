@@ -19,11 +19,11 @@ curl --request POST \
 	"componentParams": {
 		"type": "JIBRI",
 		"region": "someregion",
-		"environment": "someenv",
-		"metadata": {
-			"sinkType": "FILE"
-		}
+		"environment": "someenv"
 	},
+	"metadata": {
+        "sinkType": "FILE"
+    },
 	"callLoginParams": {...}
 }'
 ```
@@ -44,15 +44,15 @@ curl --request POST \
 	"componentParams": {
 		"type": "SIP-JIBRI",
 		"region": "someregion",
-		"environment": "someenv",
-		"metadata": {
-			"sipClientParams": {
-				 "autoAnswer": true,
-				 "sipAddress": "sip:caller@callersipprovider.com",
-				 "displayName": "Caller"
-			}
-		}
-	}
+		"environment": "someenv"
+	},
+	"metadata": {
+        "sipClientParams": {
+             "autoAnswer": true,
+             "sipAddress": "sip:caller@callersipprovider.com",
+             "displayName": "Caller"
+        }
+    }
 }'
 ```
 
@@ -68,20 +68,39 @@ curl --request POST \
 		"callUrlInfo": {
 			"baseUrl": "https://somedomain.com",
 			"callName": "somemeeting"
-		},
-		"displayName": "Callee"
+		}
 	},
 	"componentParams": {
 		"type": "SIP-JIBRI",
 		"region": "someregion",
 		"environment": "someenv",
-		"metadata": {
-			"sipClientParams": {
-				 "autoAnswer": false,
-				 "sipAddress": "sip:callee@calleesipprovider.com",
-				 "displayName": "Caller"
-			}
+	},
+	"metadata": {
+        "sipClientParams": {
+             "autoAnswer": false,
+             "sipAddress": "sip:callee@calleesipprovider.com",
+             "displayName": "Caller"
+        }
+    }
+}'
+```
+
+### Send a bulk invite for SIP-Jibris
+
+```
+curl --request POST \
+--url http://localhost:8015/jitsi-component-selector/sessions/start \
+--header 'Content-Type: application/json' \
+--data '{
+	"callParams": {
+		"callUrlInfo": {
+			"baseUrl": "https://somedomain.com",
+			"callName": "somemeeting"
 		}
-	}
+	},
+	"sipClientParams": {
+         "sipAddress": ["sip:callee@calleesipprovider.com", "sip:secondcallee@calleesipprovider.com"],
+         "displayName": "Caller"
+    }
 }'
 ```

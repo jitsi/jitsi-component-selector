@@ -2,9 +2,11 @@ import { v4 as uuidv4 } from 'uuid';
 
 import {
     ComponentType,
+    SipJibriMetadata,
+    BulkInviteRequest,
     StartSessionRequest,
     StopSessionRequest,
-    UpdateSessionRequest
+    UpdateSessionRequest, JigasiMetadata
 } from '../handlers/session_handler';
 import SessionRepository from '../repository/session_repository';
 import { Context } from '../util/context';
@@ -16,6 +18,7 @@ import {
     CommandResponseType
 } from './command_service';
 import ComponentService from './component_service';
+import SessionRequestsMapper from './mapper/session_request_mapper';
 import SelectionService, { Component } from './selection_service';
 
 export enum SessionStatus {
@@ -177,6 +180,61 @@ export default class SessionsService {
 
         return sessionResponsePayload;
 
+    }
+
+    /**
+     * Invites multiple destinations to join the meeting.
+     * This results in multiple sessions being started, one for each destination.
+     * @param ctx
+     * @param bulkInviteRequest
+     */
+    async bulkInvite(ctx: Context,
+            bulkInviteRequest: BulkInviteRequest
+    ): Promise<any> {
+        const requests: StartSessionRequest[] = SessionRequestsMapper.mapToStartSessionRequests(bulkInviteRequest);
+        const successfulInvites = [];
+        const failedInvites = [];
+
+        for (const request of requests) {
+            let destination;
+
+            if (request.componentParams.type === ComponentType.SipJibri) {
+                const metadata = request.metadata as SipJibriMetadata;
+
+                destination = metadata.sipClientParams.sipAddress;
+            } else if (request.componentParams.type === ComponentType.Jigasi) {
+                const metadata = request.metadata as JigasiMetadata;
+
+                destination = metadata.sipCallParams.to;
+            }
+
+            const response = await this.startSession(ctx, request);
+
+            if (response.hasOwnProperty('errorKey')) {
+                const errorResponse = response as SessionErrorResponsePayload;
+
+                failedInvites.push({
+                    destination,
+                    sessionId: errorResponse.sessionId,
+                    error: {
+                        errorKey: errorResponse.errorKey,
+                        errorMessage: errorResponse.errorMessage
+                    }
+                });
+            } else {
+                const successfulResponse = response as SessionResponsePayload;
+
+                successfulInvites.push({
+                    destination,
+                    sessionId: successfulResponse.sessionId
+                });
+            }
+        }
+
+        return {
+            successfulInvites,
+            failedInvites
+        };
     }
 
     /**
