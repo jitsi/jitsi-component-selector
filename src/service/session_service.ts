@@ -1,7 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 
 import {
-    ComponentParams,
     ComponentType,
     SipClientParams,
     SipJibriMetadata,
@@ -200,11 +199,11 @@ export default class SessionsService {
             let destination;
 
             if (request.componentParams.type === ComponentType.SipJibri) {
-                const metadata = request.componentParams.metadata as SipJibriMetadata;
+                const metadata = request.metadata as SipJibriMetadata;
 
                 destination = metadata.sipClientParams.sipAddress;
             } else if (request.componentParams.type === ComponentType.Jigasi) {
-                const metadata = request.componentParams.metadata as JigasiMetadata;
+                const metadata = request.metadata as JigasiMetadata;
 
                 destination = metadata.sipCallParams.to;
             }
@@ -253,17 +252,12 @@ export default class SessionsService {
                     sipAddress,
                     autoAnswer: false
                 }
-                const componentParams:ComponentParams = {
-                    type: bulkInviteRequest.componentParams.type,
-                    region: bulkInviteRequest.componentParams.region,
-                    environment: bulkInviteRequest.componentParams.environment,
+                const startSessionRequest: StartSessionRequest = {
+                    callParams: bulkInviteRequest.callParams,
+                    componentParams: bulkInviteRequest.componentParams,
                     metadata: <SipJibriMetadata>{
                         sipClientParams
                     }
-                }
-                const startSessionRequest: StartSessionRequest = {
-                    callParams: bulkInviteRequest.callParams,
-                    componentParams
                 }
 
                 requests.push(startSessionRequest);
@@ -275,17 +269,12 @@ export default class SessionsService {
                     to,
                     headers: bulkInviteRequest.sipCallParams.headers
                 }
-                const componentParams:ComponentParams = {
-                    type: bulkInviteRequest.componentParams.type,
-                    region: bulkInviteRequest.componentParams.region,
-                    environment: bulkInviteRequest.componentParams.environment,
+                const startSessionRequest: StartSessionRequest = {
+                    callParams: bulkInviteRequest.callParams,
+                    componentParams: bulkInviteRequest.componentParams,
                     metadata: <JigasiMetadata>{
                         sipCallParams
                     }
-                }
-                const startSessionRequest: StartSessionRequest = {
-                    callParams: bulkInviteRequest.callParams,
-                    componentParams
                 }
 
                 requests.push(startSessionRequest);

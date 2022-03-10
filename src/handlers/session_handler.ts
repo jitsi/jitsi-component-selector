@@ -139,7 +139,6 @@ export interface ComponentParams {
     region: string;
     environment: string;
     excludedComponentKeys?: string[];
-    metadata?: JibriMetadata | SipJibriMetadata | JigasiMetadata;
 }
 
 export interface CallLoginParams {
@@ -153,6 +152,7 @@ export interface StartSessionRequest {
     callParams: CallParams;
     callLoginParams?: CallLoginParams
     componentParams: ComponentParams;
+    metadata?: JibriMetadata | SipJibriMetadata | JigasiMetadata;
 }
 
 export interface StopSessionRequest {

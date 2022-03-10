@@ -127,7 +127,7 @@ export default class ComponentService {
      */
     private mapToJibriComponentRequest(sessionId: string,
             startSessionRequest: StartSessionRequest): JibriRequest {
-        const componentMetadata = startSessionRequest.componentParams.metadata as JibriMetadata;
+        const componentMetadata = startSessionRequest.metadata as JibriMetadata;
         const componentRequest: JibriRequest = ComponentService
             .mapToBasicComponentRequest(sessionId, startSessionRequest) as JibriRequest;
 
@@ -151,7 +151,7 @@ export default class ComponentService {
             startSessionRequest: StartSessionRequest): SipJibriRequest {
         const componentRequest:SipJibriRequest = ComponentService
             .mapToBasicComponentRequest(sessionId, startSessionRequest) as SipJibriRequest;
-        const componentMetadata = startSessionRequest.componentParams.metadata as SipJibriMetadata;
+        const componentMetadata = startSessionRequest.metadata as SipJibriMetadata;
 
         if (!componentMetadata.sipClientParams) {
             return componentRequest;
@@ -196,7 +196,7 @@ export default class ComponentService {
             startSessionRequest: StartSessionRequest): JigasiRequest {
         const componentRequest: JigasiRequest = ComponentService
             .mapToBasicComponentRequest(sessionId, startSessionRequest) as JigasiRequest;
-        const componentMetadata = startSessionRequest.componentParams.metadata as JigasiMetadata;
+        const componentMetadata = startSessionRequest.metadata as JigasiMetadata;
 
         componentRequest.sipCallParams = componentMetadata.sipCallParams;
 

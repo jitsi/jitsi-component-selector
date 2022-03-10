@@ -19,11 +19,11 @@ curl --request POST \
 	"componentParams": {
 		"type": "JIBRI",
 		"region": "someregion",
-		"environment": "someenv",
-		"metadata": {
-			"sinkType": "FILE"
-		}
+		"environment": "someenv"
 	},
+	"metadata": {
+        "sinkType": "FILE"
+    },
 	"callLoginParams": {...}
 }'
 ```
@@ -44,15 +44,15 @@ curl --request POST \
 	"componentParams": {
 		"type": "SIP-JIBRI",
 		"region": "someregion",
-		"environment": "someenv",
-		"metadata": {
-			"sipClientParams": {
-				 "autoAnswer": true,
-				 "sipAddress": "sip:caller@callersipprovider.com",
-				 "displayName": "Caller"
-			}
-		}
-	}
+		"environment": "someenv"
+	},
+	"metadata": {
+        "sipClientParams": {
+             "autoAnswer": true,
+             "sipAddress": "sip:caller@callersipprovider.com",
+             "displayName": "Caller"
+        }
+    }
 }'
 ```
 
@@ -74,14 +74,14 @@ curl --request POST \
 		"type": "SIP-JIBRI",
 		"region": "someregion",
 		"environment": "someenv",
-		"metadata": {
-			"sipClientParams": {
-				 "autoAnswer": false,
-				 "sipAddress": "sip:callee@calleesipprovider.com",
-				 "displayName": "Caller"
-			}
-		}
-	}
+	},
+	"metadata": {
+        "sipClientParams": {
+             "autoAnswer": false,
+             "sipAddress": "sip:callee@calleesipprovider.com",
+             "displayName": "Caller"
+        }
+    }
 }'
 ```
 
@@ -99,7 +99,7 @@ curl --request POST \
 		}
 	},
 	"sipClientParams": {
-         "sipAddress": ["sip:callee@calleesipprovider.com"],
+         "sipAddress": ["sip:callee@calleesipprovider.com", "sip:secondcallee@calleesipprovider.com"],
          "displayName": "Caller"
     }
 }'
