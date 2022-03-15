@@ -46,7 +46,9 @@ const subClient = pubClient.duplicate();
 
 const redisClient = new Redis(redisOptions);
 const sessionRepository = new SessionRepository({
-    redisClient
+    redisClient,
+    redisScanCount: config.RedisScanCount,
+    sessionTtlSec: config.ComponentTtlSec
 });
 
 const componentRepository = new ComponentRepository({
@@ -80,7 +82,8 @@ const asapFetcher = new ASAPPubKeyFetcher(
 );
 
 const componentTracker = new ComponentTracker({
-    componentRepository
+    componentRepository,
+    sessionRepository
 });
 
 const systemJwtClaims = {
@@ -165,9 +168,25 @@ async function cleanupComponents() {
     } catch (err) {
         ctx.logger.error(`Error while cleaning up expired components: ${err}`, { err });
     }
-    setTimeout(cleanupComponents, config.TrimComponentsIntervalSec * 1000);
+    setTimeout(cleanupComponents, config.CleanupComponentsIntervalSec * 1000);
 }
 cleanupComponents();
+
+/**
+ * Cleanup sessions
+ */
+async function cleanupSessions() {
+    const ctx = generateNewContext('cleanup-job');
+
+    try {
+        await sessionsService.cleanupSessions(ctx);
+    } catch (err) {
+        ctx.logger.error(`Error while cleaning up sessions: ${err}`, { err });
+    }
+    setTimeout(cleanupSessions, config.CleanupSessionsIntervalSec * 1000);
+}
+cleanupSessions();
+
 
 // start the http server
 if (config.ProtectedApi) {

@@ -12,7 +12,7 @@ import CommandService, {
     CommandResponse,
     CommandType
 } from './command_service';
-import { ComponentMetadata, ComponentState, ComponentStatus } from './component_tracker';
+import { ComponentMetadata, ComponentState, JibriStatus, JigasiStatus } from './component_tracker';
 import ComponentRequestMapper from './mapper/component_request_mapper';
 import { Component } from './selection_service';
 
@@ -25,7 +25,7 @@ export interface ComponentInfo {
     lastInProgressTimestamp?: Date;
     componentId?: string;
     hostname?: string;
-    lastStatus?: ComponentStatus;
+    lastStatus?: JibriStatus| JigasiStatus;
     metadata?: ComponentMetadata;
 }
 
@@ -146,7 +146,7 @@ export default class ComponentService {
                 hostname: componentState.hostname,
                 componentKey: componentState.componentKey,
                 lastStatusTimestamp: new Date(componentState.timestamp),
-                lastStatus: componentState.stats,
+                lastStatus: componentState.status,
                 metadata: componentState.metadata
             };
 

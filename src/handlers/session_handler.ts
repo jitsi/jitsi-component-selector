@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 
-import SessionsService, { Session, SessionStatus } from '../service/session_service';
+import SessionsService, { Session } from '../service/session_service';
 
 export enum ComponentType {
     Jibri = 'JIBRI',
@@ -164,12 +164,6 @@ export interface BulkInviteRequest {
     componentParams?: ComponentParams;
     sipClientParams?: BulkInviteSipClientParams;
     sipCallParams?: BulkInviteSipCallParams;
-}
-
-export interface UpdateSessionRequest {
-    sessionId: string;
-    status: SessionStatus;
-    message?: string;
 }
 
 export interface SessionsHandlerOptions {

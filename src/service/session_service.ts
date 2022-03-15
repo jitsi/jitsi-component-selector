@@ -5,8 +5,7 @@ import {
     SipJibriMetadata,
     BulkInviteRequest,
     StartSessionRequest,
-    StopSessionRequest,
-    UpdateSessionRequest, JigasiMetadata
+    StopSessionRequest, JigasiMetadata
 } from '../handlers/session_handler';
 import SessionRepository from '../repository/session_repository';
 import { Context } from '../util/context';
@@ -22,9 +21,10 @@ import SessionRequestsMapper from './mapper/session_request_mapper';
 import SelectionService, { Component } from './selection_service';
 
 export enum SessionStatus {
-    On = 'ON',
-    Off = 'OFF',
-    Error = 'ERROR',
+    ON = 'ON',
+    OFF = 'OFF',
+    PENDING = 'PENDING',
+    UNDEFINED = 'UNDEFINED'
 }
 
 export interface Session {
@@ -36,6 +36,7 @@ export interface Session {
     region: string;
     environment: string;
     status: SessionStatus;
+    updatedAt: number;
     errorKey?: any;
     errorMessage?: any;
 }
@@ -46,6 +47,7 @@ export interface SessionResponsePayload {
     region: string;
     type: ComponentType;
     componentKey: string;
+    status: SessionStatus;
     metadata?: any;
 }
 
@@ -63,6 +65,7 @@ export interface SessionErrorResponsePayload {
     region: string;
     type: ComponentType;
     componentKey?: string;
+    status: SessionStatus;
     errorKey: SessionErrorType;
     errorMessage: string;
 }
@@ -116,6 +119,7 @@ export default class SessionsService {
                 environment: startSessionRequest.componentParams.environment,
                 region: startSessionRequest.componentParams.region,
                 type: startSessionRequest.componentParams.type,
+                status: SessionStatus.UNDEFINED,
                 errorKey: SessionErrorType.UNAVAILABLE_COMPONENTS,
                 errorMessage: 'No available candidates, please try again'
             };
@@ -131,14 +135,18 @@ export default class SessionsService {
             ctx.logger.info(`Unexpected error for ${component.key}`, {
                 error
             });
+
             sessionResponsePayload = {
                 sessionId,
                 type: startSessionRequest.componentParams.type,
                 environment: startSessionRequest.componentParams.environment,
                 region: startSessionRequest.componentParams.region,
+                status: SessionStatus.UNDEFINED,
                 errorKey: error.name ? error.name : SessionErrorType.INTERNAL_ERROR,
                 errorMessage: error.message
             }
+
+            await this.handleStartFailure(ctx, startSessionRequest, sessionResponsePayload, component);
 
             return sessionResponsePayload;
         }
@@ -155,6 +163,7 @@ export default class SessionsService {
                 environment: startSessionRequest.componentParams.environment,
                 region: startSessionRequest.componentParams.region,
                 componentKey: component.key,
+                status: SessionStatus.PENDING,
                 metadata: commandResponsePayload.metadata
             }
         } else {
@@ -162,20 +171,18 @@ export default class SessionsService {
 
             const commandErrorResponse = commandResponse.payload as CommandErrorResponsePayload;
 
-            // TODO handle removeFromInProgress inside handleStartFailure method
-            // the method would have more then 4 params - not allowed right now
-            await this.handleStartFailure(ctx, sessionId, startSessionRequest, commandErrorResponse);
-            await this.componentService.removeFromInProgress(ctx, component);
-
             sessionResponsePayload = {
                 sessionId,
                 type: startSessionRequest.componentParams.type,
                 environment: startSessionRequest.componentParams.environment,
                 region: startSessionRequest.componentParams.region,
                 componentKey: commandErrorResponse.componentKey,
+                status: SessionStatus.OFF,
                 errorKey: commandErrorResponse.errorKey as unknown as SessionErrorType,
                 errorMessage: commandErrorResponse.errorMessage
             }
+
+            await this.handleStartFailure(ctx, startSessionRequest, sessionResponsePayload, component);
         }
 
         return sessionResponsePayload;
@@ -256,7 +263,9 @@ export default class SessionsService {
             componentKey: commandResponsePayload.componentKey,
             componentType: startSessionRequest.componentParams.type,
             environment: startSessionRequest.componentParams.environment,
-            region: startSessionRequest.componentParams.region
+            region: startSessionRequest.componentParams.region,
+            status: SessionStatus.PENDING,
+            updatedAt: Date.now()
         };
 
         await this.sessionRepository.upsertSession(ctx, session);
@@ -265,27 +274,30 @@ export default class SessionsService {
     /**
      * Handles a failed start session result, by updating session info
      * @param ctx
-     * @param sessionId
      * @param startSessionRequest
-     * @param commandResponse
+     * @param sessionResponsePayload
+     * @param component
      * @private
      */
     private async handleStartFailure(ctx: Context,
-            sessionId: string,
             startSessionRequest: StartSessionRequest,
-            commandResponse : CommandErrorResponsePayload) {
+            sessionResponsePayload: SessionResponsePayload | SessionErrorResponsePayload,
+            component : Component) {
         const session = <Session>{
-            sessionId,
+            sessionId: sessionResponsePayload.sessionId,
             baseUrl: startSessionRequest.callParams.callUrlInfo.baseUrl,
             callName: startSessionRequest.callParams.callUrlInfo.callName,
-            componentKey: commandResponse.componentKey,
+            componentKey: sessionResponsePayload.componentKey,
             componentType: startSessionRequest.componentParams.type,
             environment: startSessionRequest.componentParams.environment,
             region: startSessionRequest.componentParams.region,
-            errorKey: commandResponse.errorKey,
-            errorMessage: commandResponse.errorMessage
+            status: sessionResponsePayload.status,
+            updatedAt: Date.now(),
+            errorKey: 'errorKey' in sessionResponsePayload && sessionResponsePayload.errorKey,
+            errorMessage: 'errorMessage' in sessionResponsePayload && sessionResponsePayload.errorMessage
         };
 
+        await this.componentService.removeFromInProgress(ctx, component);
         await this.sessionRepository.upsertSession(ctx, session);
     }
 
@@ -323,6 +335,7 @@ export default class SessionsService {
                 environment: session.environment,
                 region: session.region,
                 componentKey: session.componentKey,
+                status: SessionStatus.OFF,
                 metadata: commandResponsePayload.metadata
             };
         } else {
@@ -338,6 +351,7 @@ export default class SessionsService {
                 environment: session.environment,
                 region: session.region,
                 componentKey: session.componentKey,
+                status: session.status,
                 errorKey: commandErrorResponse.errorKey as unknown as SessionErrorType,
                 errorMessage: commandErrorResponse.errorMessage
             }
@@ -352,28 +366,19 @@ export default class SessionsService {
      * @param sessionId
      */
     async getSession(ctx: Context, sessionId: string): Promise<Session> {
-        ctx.logger.info('Get session');
+        ctx.logger.info(`Get session by id ${sessionId}`);
 
         // todo check if customer's domain == session.domain
         return await this.sessionRepository.getSession(ctx, sessionId);
     }
 
     /**
-     * Status updates for a (recording, dial-out etc) session
+     * Cleanup older sessions
      * @param ctx request context
-     * @param updateSessionRequest
-     * @param sessionId
      */
-    async updateSession(ctx: Context, updateSessionRequest: UpdateSessionRequest, sessionId: string): Promise<Session> {
-        const session: Session = await this.sessionRepository.getSession(ctx, sessionId);
+    async cleanupSessions(ctx: Context):Promise<void> {
+        ctx.logger.info('Cleanup expired sessions');
 
-        if (session) {
-            session.status = updateSessionRequest.status;
-            await this.sessionRepository.upsertSession(ctx, session);
-
-            return session;
-        }
-
-        return null;
+        return await this.sessionRepository.cleanupExpired(ctx);
     }
 }
