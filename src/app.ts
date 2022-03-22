@@ -5,6 +5,7 @@ import Redis from 'ioredis';
 import config from './config/config';
 import ComponentHandler from './handlers/component_handler';
 import SessionsHandler from './handlers/session_handler';
+import { SelectorAuthorization } from './middleware/authorization';
 import ComponentRepository from './repository/component_repository';
 import SessionRepository from './repository/session_repository';
 import RestServer from './rest_server';
@@ -67,6 +68,10 @@ for (const issuer of config.SystemAsapJwtAcceptedHookIss.values()) {
     issToBaseUrl.set(issuer, config.SystemAsapPubKeyBaseUrl);
 }
 
+for (const issuer of config.JitsiAsapJwtAcceptedHookIss.values()) {
+    issToBaseUrl.set(issuer, config.JitsiAsapPubKeyBaseUrl);
+}
+
 const asapFetcher = new ASAPPubKeyFetcher(
     issToBaseUrl,
     config.AsapPubKeyTTL
@@ -76,6 +81,22 @@ const componentTracker = new ComponentTracker({
     componentRepository
 });
 
+const systemJwtClaims = {
+    asapJwtAcceptedAud: config.SystemAsapJwtAcceptedAud,
+    asapJwtAcceptedHookIss: config.SystemAsapJwtAcceptedHookIss
+}
+const jitsiJwtClaims = {
+    asapJwtAcceptedAud: config.JitsiAsapJwtAcceptedAud,
+    asapJwtAcceptedHookIss: config.JitsiAsapJwtAcceptedHookIss
+}
+
+const selectorAuthorization = new SelectorAuthorization({
+    asapFetcher,
+    protectedApi: config.ProtectedApi,
+    systemJwtClaims,
+    jitsiJwtClaims
+})
+
 // create the websocket server
 const websocketServer = new WsServer({
     httpServer,
@@ -83,12 +104,7 @@ const websocketServer = new WsServer({
     subClient,
     wsPath: config.WSServerPath,
     componentTracker,
-    asapFetcher,
-    systemJwtClaims: {
-        asapJwtAcceptedAud: config.SystemAsapJwtAcceptedAud,
-        asapJwtAcceptedHookIss: config.SystemAsapJwtAcceptedHookIss
-    },
-    protectedApi: config.ProtectedApi
+    selectorAuthorization
 });
 
 // configure the rest server dependencies
@@ -106,9 +122,9 @@ const selectionService = new SelectionService({ componentRepository,
 const sessionsService = new SessionsService({ sessionRepository,
     selectionService,
     componentService });
+
 const restServer = new RestServer({
     app,
-    protectedApi: config.ProtectedApi,
     sessionsHandler: new SessionsHandler({
         sessionsService,
         defaultRegion: config.DefaultRegion,
@@ -116,7 +132,8 @@ const restServer = new RestServer({
     }),
     componentHandler: new ComponentHandler({
         componentService
-    })
+    }),
+    selectorAuthorization
 });
 
 // initialize the rest routes and the websocket routes

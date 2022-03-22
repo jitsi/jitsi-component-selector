@@ -4,7 +4,9 @@ import { Application, Express } from 'express';
 
 import ComponentHandler from './handlers/component_handler';
 import SessionsHandler from './handlers/session_handler';
+import { SelectorAuthorization } from './middleware/authorization';
 import * as errorHandler from './middleware/error_handler';
+import { unless } from './middleware/middleware_utils';
 import * as stats from './middleware/stats';
 import {
     getInviteSessionRules, getStartSessionRules,
@@ -15,9 +17,9 @@ import * as context from './util/context';
 
 export interface RestServerOptions {
   app: express.Express;
-  protectedApi: boolean;
   sessionsHandler: SessionsHandler;
   componentHandler: ComponentHandler;
+  selectorAuthorization: SelectorAuthorization;
 }
 
 /**
@@ -25,9 +27,9 @@ export interface RestServerOptions {
  */
 export default class RestServer {
     private readonly app: express.Express;
-    private readonly protectedApi: boolean;
     private readonly sessionsHandler: SessionsHandler;
     private readonly componentHandler: ComponentHandler;
+    private readonly selectorAuthorization: SelectorAuthorization;
 
     /**
      * Constructor
@@ -35,9 +37,9 @@ export default class RestServer {
      */
     constructor(options: RestServerOptions) {
         this.app = options.app;
-        this.protectedApi = options.protectedApi;
         this.sessionsHandler = options.sessionsHandler;
         this.componentHandler = options.componentHandler;
+        this.selectorAuthorization = options.selectorAuthorization;
     }
 
     /**
@@ -60,27 +62,47 @@ export default class RestServer {
 
         const loggedPaths = [ '/jitsi-component-selector/*' ];
 
-        app.use(loggedPaths, stats.middleware);
+        app.use(loggedPaths, stats.statsMiddleware);
         app.use(loggedPaths, context.accessLogger);
-        stats.registerHandler(app, '/metrics');
 
+        // Unauthorized handlers
+        stats.registerHandler(app, '/metrics');
+        app.get('/health', (req: express.Request, res: express.Response) => {
+            res.send('healthy!');
+        });
+
+        // Authorization and validation
         app.use(
             [ '/jitsi-component-selector/sessions/start' ],
+            this.selectorAuthorization.signalAuthMiddleware,
             getStartSessionRules(), validate
         );
 
         app.use(
             [ '/jitsi-component-selector/sessions/invite' ],
+            this.selectorAuthorization.jitsiAuthMiddleware,
+
+            // permissions.userPermissions(),
             getInviteSessionRules(), validate
         );
 
         app.use(
             [ '/jitsi-component-selector/sessions/stop' ],
+            this.selectorAuthorization.signalAuthMiddleware,
             getStopSessionRules(), validate
         );
 
+        // Use system authorization for the rest of endpoints
+        const noSystemAuthPaths: string[] = [
+            '/jitsi-component-selector/sessions/start',
+            '/jitsi-component-selector/sessions/invite',
+            '/jitsi-component-selector/sessions/stop'
+        ];
+
+        app.use(unless(this.selectorAuthorization.systemAuthMiddleware, ...noSystemAuthPaths));
+
         // This is placed last in the middleware chain and is our default error handler.
-        app.use(errorHandler.middleware);
+        app.use(errorHandler.errorHandlerMiddleware);
     }
 
     /**
@@ -89,10 +111,6 @@ export default class RestServer {
      * @private
      */
     private configRoutes(app: Application): void {
-        app.get('/health', (req: express.Request, res: express.Response) => {
-            res.send('healthy!');
-        });
-
         app.post(
       '/jitsi-component-selector/sessions/start',
       async (

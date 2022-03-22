@@ -1,5 +1,5 @@
 
-import { Request } from 'express';
+import express from 'express';
 import { secretType } from 'express-jwt';
 import got from 'got';
 import { Secret } from 'jsonwebtoken';
@@ -82,16 +82,17 @@ export class ASAPPubKeyFetcher {
     }
 
     /**
-     * Method for getting the public key
+     * Method for getting the public key, using a signature
+     * specific to express-jwt
      * @param req
      * @param header
      * @param payload
      * @param done
      */
-    pubKeyCallback(req: Request,
+    pubKeyCallback(req: express.Request,
             header: any,
             payload: any,
-            done: (err: any, secret?: secretType | Secret) => void): void {
+            done: (err: any, secret?: secretType) => void): void {
         return this.pubKeyCallbackForJsonWebToken(req.context, header, payload, done);
     }
 }
