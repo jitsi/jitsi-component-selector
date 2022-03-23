@@ -6,6 +6,7 @@ import config from './config/config';
 import ComponentHandler from './handlers/component_handler';
 import SessionsHandler from './handlers/session_handler';
 import { SelectorAuthorization } from './middleware/authorization';
+import { SelectorPermissions } from './middleware/permissions';
 import ComponentRepository from './repository/component_repository';
 import SessionRepository from './repository/session_repository';
 import RestServer from './rest_server';
@@ -97,6 +98,12 @@ const selectorAuthorization = new SelectorAuthorization({
     jitsiJwtClaims
 })
 
+const selectorPermissions = new SelectorPermissions({
+    protectedApi: config.ProtectedApi,
+    jigasiJitsiFeature: config.JigasiJitsiFeature,
+    sipJibriJitsiFeature: config.SipJibriJitsiFeature
+});
+
 // create the websocket server
 const websocketServer = new WsServer({
     httpServer,
@@ -133,7 +140,8 @@ const restServer = new RestServer({
     componentHandler: new ComponentHandler({
         componentService
     }),
-    selectorAuthorization
+    selectorAuthorization,
+    selectorPermissions
 });
 
 // initialize the rest routes and the websocket routes

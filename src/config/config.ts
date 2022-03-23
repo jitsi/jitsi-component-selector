@@ -42,7 +42,9 @@ const env = envalid.cleanEnv(process.env, {
     CANDIDATE_TTL_SEC: envalid.num({ default: 120 }),
     TRIM_COMPONENTS_INTERVAL_SEC: envalid.num({ default: 60 }),
     DEFAULT_REGION: envalid.str(),
-    DEFAULT_ENVIRONMENT: envalid.str()
+    DEFAULT_ENVIRONMENT: envalid.str(),
+    JIGASI_JITSI_FEATURE: envalid.str({ default: 'outbound-call' }),
+    SIP_JIBRI_JITSI_FEATURE: envalid.str({ default: 'sip-outbound-call' })
 });
 
 export default {
@@ -71,5 +73,7 @@ export default {
     CandidateTTLSec: env.CANDIDATE_TTL_SEC,
     TrimComponentsIntervalSec: env.TRIM_COMPONENTS_INTERVAL_SEC,
     DefaultRegion: env.DEFAULT_REGION,
-    DefaultEnvironment: env.DEFAULT_ENVIRONMENT
+    DefaultEnvironment: env.DEFAULT_ENVIRONMENT,
+    JigasiJitsiFeature: env.JIGASI_JITSI_FEATURE,
+    SipJibriJitsiFeature: env.SIP_JIBRI_JITSI_FEATURE
 };
