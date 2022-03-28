@@ -63,6 +63,7 @@ export enum ErrorType {
 
 export interface CommandErrorResponsePayload {
     componentKey: string;
+    sessionId: string;
     errorKey: ErrorType;
     errorMessage: string;
 }
@@ -74,6 +75,7 @@ export enum CommandResponseType {
 
 export interface CommandResponsePayload {
     componentKey: string;
+    sessionId: string;
     metadata?: any;
 }
 

@@ -202,10 +202,10 @@ export default class SessionsHandler {
 
         if (responsePayload.hasOwnProperty('errorKey')) {
             res.status(400);
-            res.send({ responsePayload });
+            res.send(responsePayload);
         } else {
             res.status(200);
-            res.send({ responsePayload });
+            res.send(responsePayload);
         }
     }
 

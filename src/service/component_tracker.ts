@@ -5,7 +5,6 @@ import ComponentUtils from '../util/component_utils';
 import { Context } from '../util/context';
 
 import { Component } from './selection_service';
-import { Session, SessionStatus } from './session_service';
 
 export enum JibriStatusState {
     Idle = 'IDLE',
@@ -169,7 +168,8 @@ export class ComponentTracker {
 
         await this.handleComponentState(ctx, componentState);
         if (componentState.sessionId) {
-            await this.handleComponentSession(ctx, componentState.sessionId, componentState.status);
+            // TODO
+            // await this.handleComponentSession(ctx, componentState.sessionId, componentState.status);
         }
 
         // Store latest component status
@@ -293,46 +293,6 @@ export class ComponentTracker {
                            + 'in the same time ${JSON.stringify(component)}`
                 );
             }
-        }
-    }
-
-    /**
-     * Handle component session status
-     * @param ctx request context
-     * @param sessionId
-     * @param status
-     */
-    private async handleComponentSession(ctx: Context, sessionId: string, status: JibriStatus| JigasiStatus) {
-        ctx.logger.info(`Updating session ${sessionId} `);
-
-        const session: Session = await this.sessionRepository.getSession(ctx, sessionId);
-
-        if (session) {
-            let componentStatus;
-
-            if (session.componentType === ComponentType.Jibri || session.componentType === ComponentType.SipJibri) {
-                componentStatus = status as JibriStatus;
-                switch (componentStatus.busyStatus) {
-                case JibriStatusState.Idle:
-                    session.status = SessionStatus.OFF;
-                    break;
-                case JibriStatusState.Busy:
-                    session.status = SessionStatus.ON;
-                    break;
-                case JibriStatusState.Expired:
-                case JibriStatusState.SidecarRunning:
-                    session.status = SessionStatus.OFF;
-                    break;
-                }
-            } else if (session.componentType === ComponentType.Jigasi) {
-                componentStatus = status as JigasiStatus;
-                session.status = componentStatus.gracefulShutdown ? SessionStatus.ON : SessionStatus.OFF;
-            }
-            session.updatedAt = Date.now();
-
-            await this.sessionRepository.upsertSession(ctx, session);
-        } else {
-            ctx.logger.warn(`Ignoring updates for unknown sessionId ${sessionId} `);
         }
     }
 }

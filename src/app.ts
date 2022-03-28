@@ -48,7 +48,7 @@ const redisClient = new Redis(redisOptions);
 const sessionRepository = new SessionRepository({
     redisClient,
     redisScanCount: config.RedisScanCount,
-    sessionTtlSec: config.ComponentTtlSec
+    sessionTtlSec: config.SessionTtlSec
 });
 
 const componentRepository = new ComponentRepository({

@@ -1,11 +1,12 @@
 import { v4 as uuidv4 } from 'uuid';
 
 import {
-    ComponentType,
-    SipJibriMetadata,
     BulkInviteRequest,
+    ComponentType,
+    JigasiMetadata,
+    SipJibriMetadata,
     StartSessionRequest,
-    StopSessionRequest, JigasiMetadata
+    StopSessionRequest
 } from '../handlers/session_handler';
 import SessionRepository from '../repository/session_repository';
 import { Context } from '../util/context';
@@ -14,10 +15,12 @@ import {
     CommandErrorResponsePayload,
     CommandResponse,
     CommandResponsePayload,
-    CommandResponseType
+    CommandResponseType,
+    ErrorType
 } from './command_service';
 import ComponentService from './component_service';
 import SessionRequestsMapper from './mapper/session_request_mapper';
+import SessionResponseMapper from './mapper/session_response_mapper';
 import SelectionService, { Component } from './selection_service';
 
 export enum SessionStatus {
@@ -114,15 +117,7 @@ export default class SessionsService {
         );
 
         if (!component || !component.key) {
-            return {
-                sessionId,
-                environment: startSessionRequest.componentParams.environment,
-                region: startSessionRequest.componentParams.region,
-                type: startSessionRequest.componentParams.type,
-                status: SessionStatus.UNDEFINED,
-                errorKey: SessionErrorType.UNAVAILABLE_COMPONENTS,
-                errorMessage: 'No available candidates, please try again'
-            };
+            return SessionResponseMapper.mapToUnavailableSessionResponse(sessionId, startSessionRequest);
         }
 
         ctx.logger.info(`Selected component ${JSON.stringify(component)} for session ${sessionId}`);
@@ -132,57 +127,34 @@ export default class SessionsService {
             commandResponse = await this.componentService.start(ctx,
                 sessionId, startSessionRequest, component.key);
         } catch (error) {
-            ctx.logger.info(`Unexpected error for ${component.key}`, {
-                error
-            });
+            ctx.logger.error(`Unexpected error for ${component.key}: ${JSON.stringify(error)}`);
 
-            sessionResponsePayload = {
+            const commandErrorResponse : CommandErrorResponsePayload = {
+                componentKey: component.key,
                 sessionId,
-                type: startSessionRequest.componentParams.type,
-                environment: startSessionRequest.componentParams.environment,
-                region: startSessionRequest.componentParams.region,
-                status: SessionStatus.UNDEFINED,
                 errorKey: error.name ? error.name : SessionErrorType.INTERNAL_ERROR,
                 errorMessage: error.message
             }
+            const session = await this.handleStartFailure(ctx, startSessionRequest, commandErrorResponse, component);
 
-            await this.handleStartFailure(ctx, startSessionRequest, sessionResponsePayload, component);
-
-            return sessionResponsePayload;
+            return SessionResponseMapper.mapToFailedSessionResponse(session);
         }
 
         if (commandResponse && commandResponse.responseType === CommandResponseType.SUCCESS) {
             ctx.logger.info(`Done, started component ${component.key} for session ${sessionId}`);
             const commandResponsePayload: CommandResponsePayload = commandResponse.payload as CommandResponsePayload;
 
-            await this.handleStartSuccess(ctx, sessionId, startSessionRequest, commandResponsePayload);
+            const session = await this.handleStartSuccess(ctx, startSessionRequest, commandResponsePayload);
 
-            sessionResponsePayload = {
-                sessionId,
-                type: startSessionRequest.componentParams.type,
-                environment: startSessionRequest.componentParams.environment,
-                region: startSessionRequest.componentParams.region,
-                componentKey: component.key,
-                status: SessionStatus.PENDING,
-                metadata: commandResponsePayload.metadata
-            }
+            sessionResponsePayload = SessionResponseMapper
+                .mapToSessionResponse(session, commandResponsePayload.metadata);
         } else {
             ctx.logger.info(`Failed to start component ${component.key} for session ${sessionId}`);
-
             const commandErrorResponse = commandResponse.payload as CommandErrorResponsePayload;
 
-            sessionResponsePayload = {
-                sessionId,
-                type: startSessionRequest.componentParams.type,
-                environment: startSessionRequest.componentParams.environment,
-                region: startSessionRequest.componentParams.region,
-                componentKey: commandErrorResponse.componentKey,
-                status: SessionStatus.OFF,
-                errorKey: commandErrorResponse.errorKey as unknown as SessionErrorType,
-                errorMessage: commandErrorResponse.errorMessage
-            }
+            const session = await this.handleStartFailure(ctx, startSessionRequest, commandErrorResponse, component);
 
-            await this.handleStartFailure(ctx, startSessionRequest, sessionResponsePayload, component);
+            sessionResponsePayload = SessionResponseMapper.mapToFailedSessionResponse(session);
         }
 
         return sessionResponsePayload;
@@ -247,17 +219,15 @@ export default class SessionsService {
     /**
      * Handles a successful start session result, by updating session info
      * @param ctx
-     * @param sessionId
      * @param startSessionRequest
      * @param commandResponsePayload
      * @private
      */
     private async handleStartSuccess(ctx: Context,
-            sessionId: string,
             startSessionRequest: StartSessionRequest,
-            commandResponsePayload: CommandResponsePayload) {
+            commandResponsePayload: CommandResponsePayload): Promise<Session> {
         const session = <Session>{
-            sessionId,
+            sessionId: commandResponsePayload.sessionId,
             baseUrl: startSessionRequest.callParams.callUrlInfo.baseUrl,
             callName: startSessionRequest.callParams.callUrlInfo.callName,
             componentKey: commandResponsePayload.componentKey,
@@ -269,36 +239,40 @@ export default class SessionsService {
         };
 
         await this.sessionRepository.upsertSession(ctx, session);
+
+        return session;
     }
 
     /**
      * Handles a failed start session result, by updating session info
      * @param ctx
      * @param startSessionRequest
-     * @param sessionResponsePayload
+     * @param commandResponse
      * @param component
      * @private
      */
     private async handleStartFailure(ctx: Context,
             startSessionRequest: StartSessionRequest,
-            sessionResponsePayload: SessionResponsePayload | SessionErrorResponsePayload,
-            component : Component) {
+            commandResponse: CommandErrorResponsePayload,
+            component : Component): Promise<Session> {
         const session = <Session>{
-            sessionId: sessionResponsePayload.sessionId,
+            sessionId: commandResponse.sessionId,
             baseUrl: startSessionRequest.callParams.callUrlInfo.baseUrl,
             callName: startSessionRequest.callParams.callUrlInfo.callName,
-            componentKey: sessionResponsePayload.componentKey,
+            componentKey: commandResponse.componentKey,
             componentType: startSessionRequest.componentParams.type,
             environment: startSessionRequest.componentParams.environment,
             region: startSessionRequest.componentParams.region,
-            status: sessionResponsePayload.status,
+            status: commandResponse.errorKey === ErrorType.TIMEOUT ? SessionStatus.PENDING : SessionStatus.OFF,
             updatedAt: Date.now(),
-            errorKey: 'errorKey' in sessionResponsePayload && sessionResponsePayload.errorKey,
-            errorMessage: 'errorMessage' in sessionResponsePayload && sessionResponsePayload.errorMessage
+            errorKey: commandResponse.errorKey,
+            errorMessage: commandResponse.errorMessage
         };
 
         await this.componentService.removeFromInProgress(ctx, component);
         await this.sessionRepository.upsertSession(ctx, session);
+
+        return session;
     }
 
     /**
