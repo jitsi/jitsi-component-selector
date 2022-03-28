@@ -15,7 +15,7 @@ import { Context } from './context';
  */
 export class ASAPPubKeyFetcher {
     private issToBaseUrl: Map<string, AsapBaseUrlMapping[]>;
-    private kidPartsPattern: RegExp;
+    private kidPrefixPattern: RegExp;
     private cache: NodeCache;
 
     /**
@@ -31,7 +31,7 @@ export class ASAPPubKeyFetcher {
     ) {
         this.issToBaseUrl = issToBaseUrl;
         this.cache = new NodeCache({ stdTTL: ttl });
-        this.kidPartsPattern = kidPrefixPattern;
+        this.kidPrefixPattern = kidPrefixPattern;
         this.pubKeyCallback = this.pubKeyCallback.bind(this);
         this.pubKeyCallbackForJsonWebToken = this.pubKeyCallbackForJsonWebToken.bind(this);
     }
@@ -117,8 +117,8 @@ export class ASAPPubKeyFetcher {
                     return baseUrlMapping.baseUrl;
                 }
 
-                if (this.kidPartsPattern.test(kid)) {
-                    const baseUrl = baseUrlMapping.baseUrl.concat('/').concat(this.kidPartsPattern.exec(kid)[1]);
+                if (this.kidPrefixPattern.test(kid)) {
+                    const baseUrl = baseUrlMapping.baseUrl.concat('/').concat(this.kidPrefixPattern.exec(kid)[1]);
 
                     ctx.logger.debug(`Found pub key url mapping by kid pattern and suffix: ${baseUrl}`);
 
