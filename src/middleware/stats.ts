@@ -32,7 +32,7 @@ export function registerHandler(app: express.Express, path: string): void {
     app.get(path, async (req: express.Request, res: express.Response) => {
         try {
             res.set('Content-Type', promClient.register.contentType);
-            res.end(promClient.register.metrics());
+            res.end(await promClient.register.metrics());
         } catch (err) {
             res.status(500).end(err);
         }
@@ -45,7 +45,7 @@ export function registerHandler(app: express.Express, path: string): void {
  * @param res
  * @param next
  */
-export function middleware(
+export function statsMiddleware(
         req: express.Request,
         res: express.Response,
         next: express.NextFunction

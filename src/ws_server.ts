@@ -3,9 +3,8 @@ import { Redis } from 'ioredis';
 import { Server, Socket } from 'socket.io';
 import { Room, SocketId } from 'socket.io-adapter';
 
-import { JwtClaims, systemTokenValidationForWs } from './middleware/authorization';
+import { SelectorAuthorization } from './middleware/authorization';
 import { ComponentTracker } from './service/component_tracker';
-import { ASAPPubKeyFetcher } from './util/asap';
 import { Context } from './util/context';
 
 export interface WsServerOptions {
@@ -14,9 +13,7 @@ export interface WsServerOptions {
     subClient: Redis;
     wsPath: string;
     componentTracker: ComponentTracker;
-    asapFetcher: ASAPPubKeyFetcher;
-    systemJwtClaims: JwtClaims;
-    protectedApi: boolean;
+    selectorAuthorization: SelectorAuthorization;
 }
 
 interface QueryObject {
@@ -29,9 +26,7 @@ interface QueryObject {
 export default class WsServer {
     private readonly io: Server;
     private componentTracker: ComponentTracker;
-    private asapFetcher: ASAPPubKeyFetcher;
-    private systemJwtClaims: JwtClaims;
-    private protectedApi: boolean;
+    private selectorAuthorization: SelectorAuthorization;
 
     /**
      * Constructor
@@ -40,9 +35,7 @@ export default class WsServer {
     constructor(options: WsServerOptions) {
         this.io = new Server(options.httpServer, { path: options.wsPath });
         this.componentTracker = options.componentTracker;
-        this.asapFetcher = options.asapFetcher;
-        this.systemJwtClaims = options.systemJwtClaims;
-        this.protectedApi = options.protectedApi;
+        this.selectorAuthorization = options.selectorAuthorization;
     }
 
     /**
@@ -60,12 +53,7 @@ export default class WsServer {
      */
     private config(ctx: Context) {
         this.io.use(
-            systemTokenValidationForWs(
-                ctx,
-                this.asapFetcher,
-                this.systemJwtClaims,
-                this.protectedApi
-            )
+            this.selectorAuthorization.getWsAuthSystemMiddleware(ctx)
         );
     }
 

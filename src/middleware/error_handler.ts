@@ -9,7 +9,7 @@ import logger from '../util/logger';
  * @param res response
  * @param next next function
  */
-export function middleware(
+export function errorHandlerMiddleware(
         err: Error,
         req: express.Request,
         res: express.Response,

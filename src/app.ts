@@ -2,9 +2,11 @@ import express from 'express';
 import http from 'http';
 import Redis from 'ioredis';
 
-import config from './config/config';
+import config, { AsapBaseUrlMapping } from './config/config';
 import ComponentHandler from './handlers/component_handler';
 import SessionsHandler from './handlers/session_handler';
+import { SelectorAuthorization } from './middleware/authorization';
+import { SelectorPermissions } from './middleware/permissions';
 import ComponentRepository from './repository/component_repository';
 import SessionRepository from './repository/session_repository';
 import RestServer from './rest_server';
@@ -61,19 +63,46 @@ const app = express();
 const httpServer = http.createServer(app);
 
 // configure the web socket server dependencies
-const issToBaseUrl = new Map();
+const issToBaseUrlMapping = new Map();
 
 for (const issuer of config.SystemAsapJwtAcceptedHookIss.values()) {
-    issToBaseUrl.set(issuer, config.SystemAsapPubKeyBaseUrl);
+    issToBaseUrlMapping.set(issuer, config.SystemAsapBaseUrlMappings as AsapBaseUrlMapping[]);
+}
+
+for (const issuer of config.JitsiAsapJwtAcceptedHookIss.values()) {
+    issToBaseUrlMapping.set(issuer, config.JitsiAsapBaseUrlMappings as AsapBaseUrlMapping[]);
 }
 
 const asapFetcher = new ASAPPubKeyFetcher(
-    issToBaseUrl,
+    issToBaseUrlMapping,
+    new RegExp(config.KidPrefixPattern),
     config.AsapPubKeyTTL
 );
 
 const componentTracker = new ComponentTracker({
     componentRepository
+});
+
+const systemJwtClaims = {
+    asapJwtAcceptedAud: config.SystemAsapJwtAcceptedAud,
+    asapJwtAcceptedHookIss: config.SystemAsapJwtAcceptedHookIss
+}
+const jitsiJwtClaims = {
+    asapJwtAcceptedAud: config.JitsiAsapJwtAcceptedAud,
+    asapJwtAcceptedHookIss: config.JitsiAsapJwtAcceptedHookIss
+}
+
+const selectorAuthorization = new SelectorAuthorization({
+    asapFetcher,
+    protectedApi: config.ProtectedApi,
+    systemJwtClaims,
+    jitsiJwtClaims
+})
+
+const selectorPermissions = new SelectorPermissions({
+    protectedApi: config.ProtectedApi,
+    jitsiJigasiFeature: config.JitsiJigasiFeature,
+    jitsiSipJibriFeature: config.JitsiSipJibriFeature
 });
 
 // create the websocket server
@@ -83,12 +112,7 @@ const websocketServer = new WsServer({
     subClient,
     wsPath: config.WSServerPath,
     componentTracker,
-    asapFetcher,
-    systemJwtClaims: {
-        asapJwtAcceptedAud: config.SystemAsapJwtAcceptedAud,
-        asapJwtAcceptedHookIss: config.SystemAsapJwtAcceptedHookIss
-    },
-    protectedApi: config.ProtectedApi
+    selectorAuthorization
 });
 
 // configure the rest server dependencies
@@ -106,9 +130,9 @@ const selectionService = new SelectionService({ componentRepository,
 const sessionsService = new SessionsService({ sessionRepository,
     selectionService,
     componentService });
+
 const restServer = new RestServer({
     app,
-    protectedApi: config.ProtectedApi,
     sessionsHandler: new SessionsHandler({
         sessionsService,
         defaultRegion: config.DefaultRegion,
@@ -116,7 +140,9 @@ const restServer = new RestServer({
     }),
     componentHandler: new ComponentHandler({
         componentService
-    })
+    }),
+    selectorAuthorization,
+    selectorPermissions
 });
 
 // initialize the rest routes and the websocket routes
