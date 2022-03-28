@@ -101,8 +101,8 @@ const selectorAuthorization = new SelectorAuthorization({
 
 const selectorPermissions = new SelectorPermissions({
     protectedApi: config.ProtectedApi,
-    jigasiJitsiFeature: config.JigasiJitsiFeature,
-    sipJibriJitsiFeature: config.SipJibriJitsiFeature
+    jitsiJigasiFeature: config.JitsiJigasiFeature,
+    jitsiSipJibriFeature: config.JitsiSipJibriFeature
 });
 
 // create the websocket server

@@ -1,12 +1,10 @@
 import express from 'express';
 import { UnauthorizedError } from 'express-jwt';
 
-import { ComponentType } from '../handlers/session_handler';
-
 export interface SelectorPermissionsOptions {
     protectedApi: boolean,
-    sipJibriJitsiFeature: string,
-    jigasiJitsiFeature: string
+    jitsiSipJibriFeature: string,
+    jitsiJigasiFeature: string
 }
 
 /**
@@ -15,6 +13,8 @@ export interface SelectorPermissionsOptions {
 export class SelectorPermissions {
     private readonly protectedApi: boolean;
     private readonly featureMap: {[id: string]: string};
+    private readonly jitsiSipJibriFeature: string;
+    private readonly jitsiJigasiFeature: string;
 
     /**
      * Constructor
@@ -23,8 +23,8 @@ export class SelectorPermissions {
     constructor(options: SelectorPermissionsOptions) {
         this.protectedApi = options.protectedApi;
         this.featureMap = {};
-        this.featureMap[ComponentType.Jigasi.toLowerCase()] = options.jigasiJitsiFeature;
-        this.featureMap[ComponentType.SipJibri.toLowerCase()] = options.sipJibriJitsiFeature;
+        this.jitsiSipJibriFeature = options.jitsiSipJibriFeature;
+        this.jitsiJigasiFeature = options.jitsiJigasiFeature;
         this.jitsiPermissions = this.jitsiPermissions.bind(this);
         this.signalStartPermissions = this.signalStartPermissions.bind(this);
         this.signalStopPermissions = this.signalStopPermissions.bind(this);
@@ -44,9 +44,9 @@ export class SelectorPermissions {
         let feature;
 
         if (req.body.sipClientParams) {
-            feature = this.featureMap[ComponentType.SipJibri.toLowerCase()];
+            feature = this.jitsiSipJibriFeature;
         } else if (req.body.sipCallParams) {
-            feature = this.featureMap[ComponentType.Jigasi.toLowerCase()];
+            feature = this.jitsiJigasiFeature;
         } else {
             req.context.logger.error('Could not locate the feature for this type of call');
             next(new UnauthorizedError('invalid_token', { message: 'forbidden' }));
