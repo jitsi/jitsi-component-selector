@@ -2,7 +2,7 @@ import express from 'express';
 import http from 'http';
 import Redis from 'ioredis';
 
-import config from './config/config';
+import config, { AsapBaseUrlMapping } from './config/config';
 import ComponentHandler from './handlers/component_handler';
 import SessionsHandler from './handlers/session_handler';
 import { SelectorAuthorization } from './middleware/authorization';
@@ -63,18 +63,19 @@ const app = express();
 const httpServer = http.createServer(app);
 
 // configure the web socket server dependencies
-const issToBaseUrl = new Map();
+const issToBaseUrlMapping = new Map();
 
 for (const issuer of config.SystemAsapJwtAcceptedHookIss.values()) {
-    issToBaseUrl.set(issuer, config.SystemAsapPubKeyBaseUrl);
+    issToBaseUrlMapping.set(issuer, config.SystemAsapBaseUrlMappings as AsapBaseUrlMapping[]);
 }
 
 for (const issuer of config.JitsiAsapJwtAcceptedHookIss.values()) {
-    issToBaseUrl.set(issuer, config.JitsiAsapPubKeyBaseUrl);
+    issToBaseUrlMapping.set(issuer, config.JitsiAsapBaseUrlMappings as AsapBaseUrlMapping[]);
 }
 
 const asapFetcher = new ASAPPubKeyFetcher(
-    issToBaseUrl,
+    issToBaseUrlMapping,
+    new RegExp(config.KidPrefixPattern),
     config.AsapPubKeyTTL
 );
 

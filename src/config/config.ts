@@ -29,12 +29,13 @@ const env = envalid.cleanEnv(process.env, {
     PROTECTED_API: envalid.bool({ default: true }),
     COMPONENT_TTL_SEC: envalid.num({ default: 3600 }),
     ASAP_PUB_KEY_TTL: envalid.num({ default: 3600 }),
-    SYSTEM_ASAP_PUB_KEY_BASE_URL: envalid.str(),
+    SYSTEM_ASAP_BASE_URL_MAPPINGS: envalid.json({ example: '[{"kid": "kidPattern", baseUrl": "https://asap.org"}]' }),
     SYSTEM_ASAP_JWT_AUD: envalid.str(),
     SYSTEM_ASAP_JWT_ACCEPTED_HOOK_ISS: envalid.str(),
-    JITSI_ASAP_PUB_KEY_BASE_URL: envalid.str(),
+    JITSI_ASAP_BASE_URL_MAPPINGS: envalid.json({ example: '[{"kid":"kidPattern","baseUrl":"https://asap.org"]' }),
     JITSI_ASAP_JWT_AUD: envalid.str(),
     JITSI_ASAP_JWT_ACCEPTED_HOOK_ISS: envalid.str(),
+    KEY_PREFIX_PATTERN: envalid.str({ default: '^(.*)/(.*)$' }),
     SIP_ADDRESS_PATTERN: envalid.str({ default: '(^sips?:)?(.*)(@.*)' }),
     SIP_JIBRI_INBOUND_EMAIL: envalid.str({ default: 'inbound-sip-jibri@jitsi.net' }),
     SIP_JIBRI_OUTBOUND_EMAIL: envalid.str({ default: 'outbound-sip-jibri@jitsi.net' }),
@@ -46,6 +47,15 @@ const env = envalid.cleanEnv(process.env, {
     JIGASI_JITSI_FEATURE: envalid.str({ default: 'outbound-call' }),
     SIP_JIBRI_JITSI_FEATURE: envalid.str({ default: 'sip-outbound-call' })
 });
+
+/**
+ * Maps a public key base URL to a kidPattern, if any
+ */
+export interface AsapBaseUrlMapping {
+    kid?: string,
+    baseUrl: string;
+    appendKidPrefix: boolean;
+}
 
 export default {
     HTTPServerPort: env.PORT,
@@ -60,12 +70,13 @@ export default {
     ProtectedApi: env.PROTECTED_API,
     ComponentTtlSec: env.COMPONENT_TTL_SEC,
     AsapPubKeyTTL: env.ASAP_PUB_KEY_TTL,
-    SystemAsapPubKeyBaseUrl: env.SYSTEM_ASAP_PUB_KEY_BASE_URL,
+    SystemAsapBaseUrlMappings: env.SYSTEM_ASAP_BASE_URL_MAPPINGS,
     SystemAsapJwtAcceptedAud: env.SYSTEM_ASAP_JWT_AUD,
     SystemAsapJwtAcceptedHookIss: env.SYSTEM_ASAP_JWT_ACCEPTED_HOOK_ISS.split(','),
-    JitsiAsapPubKeyBaseUrl: env.JITSI_ASAP_PUB_KEY_BASE_URL,
+    JitsiAsapBaseUrlMappings: env.JITSI_ASAP_BASE_URL_MAPPINGS,
     JitsiAsapJwtAcceptedAud: env.JITSI_ASAP_JWT_AUD,
     JitsiAsapJwtAcceptedHookIss: env.JITSI_ASAP_JWT_ACCEPTED_HOOK_ISS.split(','),
+    KidPrefixPattern: env.KEY_PREFIX_PATTERN,
     SipAddressPattern: env.SIP_ADDRESS_PATTERN,
     SipJibriInboundEmail: env.SIP_JIBRI_INBOUND_EMAIL,
     SipJibriOutboundEmail: env.SIP_JIBRI_OUTBOUND_EMAIL,

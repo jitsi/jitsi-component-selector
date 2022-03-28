@@ -6,26 +6,32 @@ import { Secret } from 'jsonwebtoken';
 import NodeCache from 'node-cache';
 import sha256 from 'sha256';
 
+import { AsapBaseUrlMapping } from '../config/config';
+
 import { Context } from './context';
 
 /**
  * Public key fetcher
  */
 export class ASAPPubKeyFetcher {
-    private issToBaseUrl: Map<string, string>;
+    private issToBaseUrl: Map<string, AsapBaseUrlMapping[]>;
+    private kidPartsPattern: RegExp;
     private cache: NodeCache;
 
     /**
      * Constructor
      * @param issToBaseUrl
+     * @param kidPrefixPattern
      * @param ttl
      */
     constructor(
-            issToBaseUrl: Map<string, string>,
+            issToBaseUrl: Map<string, any>,
+            kidPrefixPattern: RegExp,
             ttl: number
     ) {
         this.issToBaseUrl = issToBaseUrl;
         this.cache = new NodeCache({ stdTTL: ttl });
+        this.kidPartsPattern = kidPrefixPattern;
         this.pubKeyCallback = this.pubKeyCallback.bind(this);
         this.pubKeyCallbackForJsonWebToken = this.pubKeyCallbackForJsonWebToken.bind(this);
     }
@@ -58,9 +64,9 @@ export class ASAPPubKeyFetcher {
             }
 
             const issuer = payload.iss;
-            const baseUrl = this.issToBaseUrl.get(issuer);
+            const baseUrl = this.getPublicKeyUrl(ctx, kid, this.issToBaseUrl.get(issuer));
 
-            if (typeof baseUrl === 'undefined') {
+            if (!baseUrl) {
                 done(new Error('invalid issuer or kid'), null);
 
                 return;
@@ -79,6 +85,49 @@ export class ASAPPubKeyFetcher {
         } catch (err) {
             done(err);
         }
+    }
+
+    /**
+     * Retrieves the first valid public key URL from the list of mappings
+     * @param ctx
+     * @param kid
+     * @param baseUrlMappings
+     * @private
+     */
+    private getPublicKeyUrl(ctx: Context, kid: string, baseUrlMappings: AsapBaseUrlMapping[]): string {
+        if (typeof baseUrlMappings === 'undefined') {
+            ctx.logger.warn('No public key URL mapping found');
+
+            return null;
+        }
+
+        for (const baseUrlMapping of baseUrlMappings) {
+            if (!baseUrlMapping.kid) {
+                ctx.logger.debug(`Found pub key url mapping: ${baseUrlMapping.baseUrl}`);
+
+                return baseUrlMapping.baseUrl;
+            }
+
+            const kidPattern = new RegExp(baseUrlMapping.kid);
+
+            if (kidPattern.test(kid)) {
+                if (!baseUrlMapping.appendKidPrefix) {
+                    ctx.logger.debug(`Found pub key url mapping by kid pattern: ${baseUrlMapping.baseUrl}`);
+
+                    return baseUrlMapping.baseUrl;
+                }
+
+                if (this.kidPartsPattern.test(kid)) {
+                    const baseUrl = baseUrlMapping.baseUrl.concat('/').concat(this.kidPartsPattern.exec(kid)[1]);
+
+                    ctx.logger.debug(`Found pub key url mapping by kid pattern and suffix: ${baseUrl}`);
+
+                    return baseUrl;
+                }
+            }
+        }
+
+        return null;
     }
 
     /**
