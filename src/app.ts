@@ -10,7 +10,7 @@ import { SelectorPermissions } from './middleware/permissions';
 import ComponentRepository from './repository/component_repository';
 import SessionRepository from './repository/session_repository';
 import RestServer from './rest_server';
-import CommandService from './service/command_service';
+import CommandService, { CommandType } from './service/command_service';
 import ComponentService from './service/component_service';
 import { ComponentTracker } from './service/component_tracker';
 import ComponentRequestMapper from './service/mapper/component_request_mapper';
@@ -124,7 +124,10 @@ const websocketServer = new WsServer({
 });
 
 // configure the rest server dependencies
-const commandService = new CommandService(websocketServer, pubClient, subClient);
+const commandService = new CommandService(websocketServer, pubClient, subClient,
+    {
+        defaultRequestTimeout: config.CommandTimeoutDefaultMs
+    });
 const componentRequestMapper = new ComponentRequestMapper({
     sipAddressPattern: config.SipAddressPattern,
     sipJibriInboundEmail: config.SipJibriInboundEmail,
@@ -132,7 +135,9 @@ const componentRequestMapper = new ComponentRequestMapper({
 })
 const componentService = new ComponentService({ componentRepository,
     commandService,
-    componentRequestMapper });
+    componentRequestMapper,
+    commandTimeoutMap: { [CommandType.STOP.toLowerCase()]: config.CommandTimeoutStopMs }
+});
 const selectionService = new SelectionService({ componentRepository,
     candidateTTLSec: config.CandidateTTLSec });
 const sessionsService = new SessionsService({ sessionRepository,

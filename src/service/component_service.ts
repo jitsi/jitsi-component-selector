@@ -32,7 +32,8 @@ export interface ComponentInfo {
 export interface ComponentServiceOptions {
     componentRepository: ComponentRepository,
     commandService: CommandService,
-    componentRequestMapper: ComponentRequestMapper
+    componentRequestMapper: ComponentRequestMapper,
+    commandTimeoutMap: { [id: string]: number };
 }
 
 /**
@@ -43,6 +44,7 @@ export default class ComponentService {
     private componentRepository: ComponentRepository;
     private commandService: CommandService;
     private componentRequestMapper: ComponentRequestMapper;
+    private commandTimeoutMap: { [id: string]: number };
 
     /**
      * Constructor
@@ -52,6 +54,7 @@ export default class ComponentService {
         this.componentRepository = options.componentRepository;
         this.commandService = options.commandService;
         this.componentRequestMapper = options.componentRequestMapper;
+        this.commandTimeoutMap = options.commandTimeoutMap;
     }
 
     /**
@@ -72,6 +75,9 @@ export default class ComponentService {
         const componentCommand = <Command>{
             cmdId: ComponentService.generateCommandId(sessionId),
             type: CommandType.START,
+            options: {
+                requestTimeout: this.commandTimeoutMap[CommandType.START.toLowerCase()]
+            },
             payload: {
                 componentKey,
                 componentRequest: {}
@@ -111,6 +117,9 @@ export default class ComponentService {
         const componentCommand = <Command>{
             cmdId: ComponentService.generateCommandId(sessionId),
             type: CommandType.STOP,
+            options: {
+                requestTimeout: this.commandTimeoutMap[CommandType.STOP.toLowerCase()]
+            },
             payload: {
                 componentKey
             }

@@ -47,7 +47,9 @@ const env = envalid.cleanEnv(process.env, {
     DEFAULT_REGION: envalid.str(),
     DEFAULT_ENVIRONMENT: envalid.str(),
     JITSI_JIGASI_FEATURE: envalid.str({ default: 'outbound-call' }),
-    JITSI_SIP_JIBRI_FEATURE: envalid.str({ default: 'sip-outbound-call' })
+    JITSI_SIP_JIBRI_FEATURE: envalid.str({ default: 'sip-outbound-call' }),
+    CMD_TIMEOUT_DEFAULT_MS: envalid.num({ default: 10000 }),
+    CMD_TIMEOUT_STOP_MS: envalid.num({ default: 90000 })
 });
 
 /**
@@ -90,5 +92,7 @@ export default {
     DefaultRegion: env.DEFAULT_REGION,
     DefaultEnvironment: env.DEFAULT_ENVIRONMENT,
     JitsiJigasiFeature: env.JITSI_JIGASI_FEATURE,
-    JitsiSipJibriFeature: env.JITSI_SIP_JIBRI_FEATURE
+    JitsiSipJibriFeature: env.JITSI_SIP_JIBRI_FEATURE,
+    CommandTimeoutDefaultMs: env.CMD_TIMEOUT_DEFAULT_MS,
+    CommandTimeoutStopMs: env.CMD_TIMEOUT_STOP_MS
 };
