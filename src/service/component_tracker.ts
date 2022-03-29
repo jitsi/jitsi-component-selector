@@ -1,5 +1,6 @@
 import { ComponentType } from '../handlers/session_handler';
 import ComponentRepository from '../repository/component_repository';
+import SessionRepository from '../repository/session_repository';
 import ComponentUtils from '../util/component_utils';
 import { Context } from '../util/context';
 
@@ -19,10 +20,8 @@ export enum JibriHealthState {
 }
 
 export interface JibriStatus {
-    status: {
-        busyStatus: JibriStatusState;
-        health: JibriHealthState;
-    }
+    busyStatus: JibriStatusState;
+    health: JibriHealthState;
 }
 
 export interface JigasiStatus {
@@ -35,11 +34,6 @@ export interface JigasiStatus {
 
     // largest_conference: number;
     gracefulShutdown: boolean;
-}
-
-export interface ComponentStatus {
-    jibriStatus?: JibriStatus;
-    jigasiStatus?: JigasiStatus;
 }
 
 export interface ComponentDetails {
@@ -61,35 +55,28 @@ export interface ComponentDetails {
  "report": {
      "component": {
         "componentId": "10.42.183.93",
-        "hostname": "jibri-42-183-93",
         "componentKey": "jibri-42-183-93",
+        "componentType": "JIBRI",
         "environment": "stage-8x8",
         "region": "us-phoenix-1",
-        "componentType": "JIBRI",
-        "group": "stage-8x8-us-phoenix-1-JibriCustomGroup"
-     },
-     "stats": {
+        "hostname": "jibri-42-183-93"
+        },
         "status": {
-           "jibriStatus": {
-              "status": {
-                 "busyStatus": "IDLE",
-                 "health": {
-                    "healthStatus": "HEALTHY",
-                    "details": {
-
-                    }
+            "busyStatus": "IDLE",
+            "health": {
+                "healthStatus": "HEALTHY",
+                "details": {
                  }
-              }
-           }
-        }
-     },
-     "timestamp":1645704570825
+            }
+        },
+        "timestamp": 1647001413776
  }
  */
 export interface StatsReport {
     component: ComponentDetails;
+    sessionId?: string;
+    status?: JibriStatus | JigasiStatus;
     timestamp?: number;
-    stats?: ComponentStatus;
 }
 
 export interface ComponentMetadata {
@@ -103,24 +90,27 @@ export interface ComponentMetadata {
 
 export interface ComponentState {
     componentId: string;
+    sessionId: string;
     hostname: string;
     componentKey: string;
     type: ComponentType;
     region: string;
     environment: string;
-    stats: ComponentStatus;
+    status: JibriStatus | JigasiStatus;
     timestamp?: number;
     metadata: ComponentMetadata;
 }
 
 export interface ComponentTrackerOptions {
-    componentRepository: ComponentRepository
+    componentRepository: ComponentRepository,
+    sessionRepository: SessionRepository
 }
 
 /**
  */
 export class ComponentTracker {
     private componentRepository: ComponentRepository;
+    private sessionRepository: SessionRepository;
 
     /**
      * Constructor
@@ -128,6 +118,7 @@ export class ComponentTracker {
      */
     constructor(options: ComponentTrackerOptions) {
         this.componentRepository = options.componentRepository;
+        this.sessionRepository = options.sessionRepository;
         this.track = this.track.bind(this);
     }
 
@@ -140,17 +131,18 @@ export class ComponentTracker {
         ctx.logger.debug(`Received report ${JSON.stringify(report)}`);
         const componentState = <ComponentState>{
             componentId: report.component.componentId,
+            sessionId: report.sessionId,
             hostname: report.component.hostname,
             componentKey: report.component.componentKey,
             timestamp: report.timestamp,
             environment: report.component.environment,
             region: report.component.region,
             type: report.component.componentType,
-            stats: <ComponentStatus>report.stats,
+            status: report.status,
             metadata: <ComponentMetadata>{ ...report.component }
         };
 
-        if (!componentState.stats) {
+        if (!componentState.status) {
             // this can happen either at provisioning when the component is not yet up,
             // or when the sidecar does not see the component
             ctx.logger.info(`Empty stats report, as it does not include component stats: ${JSON.stringify(report)}`);
@@ -158,13 +150,9 @@ export class ComponentTracker {
             switch (report.component.componentType) {
             case ComponentType.Jibri:
             case ComponentType.SipJibri:
-                componentState.stats = {
-                    jibriStatus: {
-                        status: {
-                            busyStatus: JibriStatusState.SidecarRunning,
-                            health: JibriHealthState.Unknown
-                        }
-                    }
+                componentState.status = {
+                    busyStatus: JibriStatusState.SidecarRunning,
+                    health: JibriHealthState.Unknown
                 };
                 break;
             case ComponentType.Jigasi:
@@ -179,6 +167,10 @@ export class ComponentTracker {
         }
 
         await this.handleComponentState(ctx, componentState);
+        if (componentState.sessionId) {
+            // TODO
+            // await this.handleComponentSession(ctx, componentState.sessionId, componentState.status);
+        }
 
         // Store latest component status
         await this.componentRepository.saveComponentState(ctx, componentState);
@@ -199,10 +191,14 @@ export class ComponentTracker {
             environment: componentState.environment
         }
 
-        if (componentState.stats && componentState.stats.jibriStatus) {
+        switch (component.type) {
+        case ComponentType.Jibri:
+        case ComponentType.SipJibri:
             await this.handleJibriState(ctx, component, componentState);
-        } else if (componentState.stats && componentState.stats.jigasiStatus) {
+            break;
+        case ComponentType.Jigasi:
             await this.handleJigasiState(ctx, component, componentState);
+            break;
         }
     }
 
@@ -214,9 +210,9 @@ export class ComponentTracker {
      */
     private async handleJibriState(
             ctx: Context, component: Component, componentState: ComponentState): Promise<void> {
-        if (componentState.stats.jibriStatus.status
-            && componentState.stats.jibriStatus.status.busyStatus) {
-            switch (componentState.stats.jibriStatus.status.busyStatus) {
+        if (componentState.status
+            && 'busyStatus' in componentState.status && componentState.status.busyStatus) {
+            switch (componentState.status.busyStatus) {
             case JibriStatusState.Idle:
                 await this.markAsCandidate(ctx, component, componentState);
                 break;
@@ -237,7 +233,9 @@ export class ComponentTracker {
      */
     private async handleJigasiState(
             ctx: Context, component: Component, componentState: ComponentState): Promise<void> {
-        if (componentState.stats.jigasiStatus.gracefulShutdown) {
+        const status = componentState.status as JigasiStatus;
+
+        if (status.gracefulShutdown) {
             await this.removeCandidate(ctx, component);
         } else {
             await this.markAsCandidate(ctx, component, componentState);
@@ -297,5 +295,4 @@ export class ComponentTracker {
             }
         }
     }
-
 }

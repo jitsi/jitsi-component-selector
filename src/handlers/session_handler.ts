@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 
-import SessionsService, { Session, SessionStatus } from '../service/session_service';
+import SessionsService, { Session } from '../service/session_service';
 
 export enum ComponentType {
     Jibri = 'JIBRI',
@@ -166,12 +166,6 @@ export interface BulkInviteRequest {
     sipCallParams?: BulkInviteSipCallParams;
 }
 
-export interface UpdateSessionRequest {
-    sessionId: string;
-    status: SessionStatus;
-    message?: string;
-}
-
 export interface SessionsHandlerOptions {
   sessionsService: SessionsService;
   defaultRegion: string;
@@ -208,10 +202,10 @@ export default class SessionsHandler {
 
         if (responsePayload.hasOwnProperty('errorKey')) {
             res.status(400);
-            res.send({ responsePayload });
+            res.send(responsePayload);
         } else {
             res.status(200);
-            res.send({ responsePayload });
+            res.send(responsePayload);
         }
     }
 

@@ -1,5 +1,5 @@
 import { ComponentType } from '../handlers/session_handler';
-import { ComponentState } from '../service/component_tracker';
+import { ComponentState, JigasiStatus } from '../service/component_tracker';
 
 /**
  * Component utils
@@ -15,8 +15,10 @@ export default class ComponentUtils {
             return ComponentUtils.computeScore(componentState.timestamp);
         }
 
+        const status = componentState.status as JigasiStatus;
+
         return ComponentUtils.computeScore(
-                componentState.timestamp, componentState.stats.jigasiStatus.stressLevel);
+                componentState.timestamp, status.stressLevel);
     }
 
     /**
