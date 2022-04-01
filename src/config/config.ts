@@ -49,7 +49,14 @@ const env = envalid.cleanEnv(process.env, {
     JITSI_JIGASI_FEATURE: envalid.str({ default: 'outbound-call' }),
     JITSI_SIP_JIBRI_FEATURE: envalid.str({ default: 'sip-outbound-call' }),
     CMD_TIMEOUT_DEFAULT_MS: envalid.num({ default: 10000 }),
-    CMD_TIMEOUT_STOP_MS: envalid.num({ default: 90000 })
+    CMD_TIMEOUT_START_MS: envalid.num({ default: 20000,
+        desc: 'Overall start cmd execution timeout' }),
+    COMP_REQ_TIMEOUT_START_MS: envalid.num({ default: 18000,
+        desc: 'Timeout for the start component' }),
+    CMD_TIMEOUT_STOP_MS: envalid.num({ default: 90000,
+        desc: 'Overall stop cmd execution timeout' }),
+    COMP_REQ_TIMEOUT_STOP_MS: envalid.num({ default: 80000,
+        desc: 'Timeout for the stop request' })
 });
 
 /**
@@ -94,5 +101,8 @@ export default {
     JitsiJigasiFeature: env.JITSI_JIGASI_FEATURE,
     JitsiSipJibriFeature: env.JITSI_SIP_JIBRI_FEATURE,
     CommandTimeoutDefaultMs: env.CMD_TIMEOUT_DEFAULT_MS,
-    CommandTimeoutStopMs: env.CMD_TIMEOUT_STOP_MS
+    CommandTimeoutStartMs: env.CMD_TIMEOUT_START_MS,
+    ComponentReqTimeoutStartMs: env.COMP_REQ_TIMEOUT_START_MS,
+    CommandTimeoutStopMs: env.CMD_TIMEOUT_STOP_MS,
+    ComponentReqTimeoutStopMs: env.COMP_REQ_TIMEOUT_STOP_MS
 };

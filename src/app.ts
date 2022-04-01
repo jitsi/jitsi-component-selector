@@ -126,7 +126,7 @@ const websocketServer = new WsServer({
 // configure the rest server dependencies
 const commandService = new CommandService(websocketServer, pubClient, subClient,
     {
-        defaultRequestTimeout: config.CommandTimeoutDefaultMs
+        defaultCommandTimeout: config.CommandTimeoutDefaultMs
     });
 const componentRequestMapper = new ComponentRequestMapper({
     sipAddressPattern: config.SipAddressPattern,
@@ -136,7 +136,10 @@ const componentRequestMapper = new ComponentRequestMapper({
 const componentService = new ComponentService({ componentRepository,
     commandService,
     componentRequestMapper,
-    commandTimeoutMap: { [CommandType.STOP.toLowerCase()]: config.CommandTimeoutStopMs }
+    commandTimeoutMap: { [CommandType.START.toLowerCase()]: config.CommandTimeoutStartMs,
+        [CommandType.STOP.toLowerCase()]: config.CommandTimeoutStopMs },
+    componentRequestTimeoutMap: { [CommandType.START.toLowerCase()]: config.ComponentReqTimeoutStartMs,
+        [CommandType.STOP.toLowerCase()]: config.ComponentReqTimeoutStopMs }
 });
 const selectionService = new SelectionService({ componentRepository,
     candidateTTLSec: config.CandidateTTLSec });

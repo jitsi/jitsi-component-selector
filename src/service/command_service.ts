@@ -51,7 +51,8 @@ export interface CommandPayload {
 }
 
 export interface CommandOptions {
-    requestTimeout: number;
+    commandTimeoutMs: number;
+    componentRequestTimeoutMs: number;
 }
 
 export interface Command {
@@ -93,7 +94,7 @@ export interface CommandResponse {
 
 export interface CommandServiceOptions {
     key: string;
-    defaultRequestTimeout: number;
+    defaultCommandTimeout: number;
 }
 
 /**
@@ -103,7 +104,7 @@ export interface CommandServiceOptions {
  */
 export default class CommandService {
     private wsServer:WsServer;
-    public readonly defaultRequestTimeout: number;
+    public readonly defaultCommandTimeout: number;
 
     private readonly requestChannel: string;
     private readonly responseChannel: string;
@@ -123,7 +124,7 @@ export default class CommandService {
         opts: Partial<CommandServiceOptions> = {}
     ) {
         this.wsServer = wsServer;
-        this.defaultRequestTimeout = opts.defaultRequestTimeout || 10000;
+        this.defaultCommandTimeout = opts.defaultCommandTimeout || 10000;
 
         const prefix = opts.key || 'jitsi-commands';
 
@@ -366,8 +367,8 @@ export default class CommandService {
      * @private
      */
     private getTimeoutValue(command:Command): number {
-        return command.options && command.options.requestTimeout
-            ? command.options.requestTimeout : this.defaultRequestTimeout;
+        return command.options && command.options.commandTimeoutMs
+            ? command.options.commandTimeoutMs : this.defaultCommandTimeout;
     }
 
     /**
