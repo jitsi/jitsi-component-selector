@@ -42,6 +42,8 @@ export interface Session {
     updatedAt: number;
     errorKey?: any;
     errorMessage?: any;
+    failure?: any;
+    shouldRetry?: boolean;
 }
 
 export interface SessionResponsePayload {

@@ -5,6 +5,7 @@ import { Room, SocketId } from 'socket.io-adapter';
 
 import { SelectorAuthorization } from './middleware/authorization';
 import { ComponentTracker } from './service/component_tracker';
+import { SessionTracker } from './service/session_tracker';
 import { Context } from './util/context';
 
 export interface WsServerOptions {
@@ -13,6 +14,7 @@ export interface WsServerOptions {
     subClient: Redis;
     wsPath: string;
     componentTracker: ComponentTracker;
+    sessionTracker: SessionTracker;
     selectorAuthorization: SelectorAuthorization;
 }
 
@@ -26,6 +28,7 @@ interface QueryObject {
 export default class WsServer {
     private readonly io: Server;
     private componentTracker: ComponentTracker;
+    private sessionTracker: SessionTracker;
     private selectorAuthorization: SelectorAuthorization;
 
     /**
@@ -35,6 +38,7 @@ export default class WsServer {
     constructor(options: WsServerOptions) {
         this.io = new Server(options.httpServer, { path: options.wsPath });
         this.componentTracker = options.componentTracker;
+        this.sessionTracker = options.sessionTracker;
         this.selectorAuthorization = options.selectorAuthorization;
     }
 
@@ -77,6 +81,11 @@ export default class WsServer {
                 socket.on('status-updates', (report: any) => {
                     ctx.logger.info(`Got status updates from client. ${JSON.stringify(report)}, socket=${socket.id}`);
                     this.componentTracker.track(ctx, report);
+                });
+
+                socket.on('session-updates', (report: any) => {
+                    ctx.logger.info(`Got session updates from client. ${JSON.stringify(report)}, socket=${socket.id}`);
+                    this.sessionTracker.track(ctx, report);
                 });
 
                 socket.on('disconnecting', () => {

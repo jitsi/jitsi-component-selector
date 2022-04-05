@@ -16,6 +16,7 @@ import { ComponentTracker } from './service/component_tracker';
 import ComponentRequestMapper from './service/mapper/component_request_mapper';
 import SelectionService from './service/selection_service';
 import SessionsService from './service/session_service';
+import { SessionTracker } from './service/session_tracker';
 import { ASAPPubKeyFetcher } from './util/asap';
 import { generateNewContext } from './util/context';
 import logger from './util/logger';
@@ -82,7 +83,10 @@ const asapFetcher = new ASAPPubKeyFetcher(
 );
 
 const componentTracker = new ComponentTracker({
-    componentRepository,
+    componentRepository
+});
+
+const sessionTracker = new SessionTracker({
     sessionRepository
 });
 
@@ -115,6 +119,7 @@ const websocketServer = new WsServer({
     subClient,
     wsPath: config.WSServerPath,
     componentTracker,
+    sessionTracker,
     selectorAuthorization
 });
 
