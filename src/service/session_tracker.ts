@@ -30,6 +30,7 @@ export interface SessionReport {
     sipAddress?: string,
     failure?: JibriFailure,
     shouldRetry?: boolean
+    timestamp?: number;
 }
 
 export interface SessionTrackerOptions {
@@ -71,7 +72,10 @@ export class SessionTracker {
         session.failure = report.failure;
         session.shouldRetry = report.shouldRetry;
         session.status = report.status;
-        session.updatedAt = Date.now();
+
+        const sessionReportTimestamp = Number(report.timestamp);
+
+        session.updatedAt = sessionReportTimestamp ? report.timestamp : Date.now();
 
         await this.sessionRepository.upsertSession(ctx, session);
     }
