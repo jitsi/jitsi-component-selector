@@ -1,6 +1,5 @@
 import { ComponentType } from '../handlers/session_handler';
 import ComponentRepository from '../repository/component_repository';
-import SessionRepository from '../repository/session_repository';
 import ComponentUtils from '../util/component_utils';
 import { Context } from '../util/context';
 
@@ -74,7 +73,6 @@ export interface ComponentDetails {
  */
 export interface StatsReport {
     component: ComponentDetails;
-    sessionId?: string;
     status?: JibriStatus | JigasiStatus;
     timestamp?: number;
 }
@@ -90,7 +88,6 @@ export interface ComponentMetadata {
 
 export interface ComponentState {
     componentId: string;
-    sessionId: string;
     hostname: string;
     componentKey: string;
     type: ComponentType;
@@ -103,14 +100,13 @@ export interface ComponentState {
 
 export interface ComponentTrackerOptions {
     componentRepository: ComponentRepository,
-    sessionRepository: SessionRepository
 }
 
 /**
+ * Service which tracks component status updates
  */
 export class ComponentTracker {
     private componentRepository: ComponentRepository;
-    private sessionRepository: SessionRepository;
 
     /**
      * Constructor
@@ -118,7 +114,6 @@ export class ComponentTracker {
      */
     constructor(options: ComponentTrackerOptions) {
         this.componentRepository = options.componentRepository;
-        this.sessionRepository = options.sessionRepository;
         this.track = this.track.bind(this);
     }
 
@@ -127,11 +122,10 @@ export class ComponentTracker {
      * @param ctx
      * @param report
      */
-    async track(ctx: Context, report: StatsReport): Promise<boolean> {
+    async track(ctx: Context, report: StatsReport): Promise<void> {
         ctx.logger.debug(`Received report ${JSON.stringify(report)}`);
         const componentState = <ComponentState>{
             componentId: report.component.componentId,
-            sessionId: report.sessionId,
             hostname: report.component.hostname,
             componentKey: report.component.componentKey,
             timestamp: report.timestamp,
@@ -167,15 +161,9 @@ export class ComponentTracker {
         }
 
         await this.handleComponentState(ctx, componentState);
-        if (componentState.sessionId) {
-            // TODO
-            // await this.handleComponentSession(ctx, componentState.sessionId, componentState.status);
-        }
 
         // Store latest component status
         await this.componentRepository.saveComponentState(ctx, componentState);
-
-        return true;
     }
 
     /**
