@@ -50,9 +50,15 @@ export interface CommandPayload {
     componentRequest: JibriRequest | SipJibriRequest | JigasiRequest;
 }
 
+export interface CommandOptions {
+    commandTimeoutMs: number;
+    componentRequestTimeoutMs: number;
+}
+
 export interface Command {
     cmdId: string;
     type: CommandType;
+    options: CommandOptions,
     payload: CommandPayload;
 }
 
@@ -88,7 +94,7 @@ export interface CommandResponse {
 
 export interface CommandServiceOptions {
     key: string;
-    requestsTimeout: number;
+    defaultCommandTimeout: number;
 }
 
 /**
@@ -98,7 +104,7 @@ export interface CommandServiceOptions {
  */
 export default class CommandService {
     private wsServer:WsServer;
-    public readonly requestsTimeout: number;
+    public readonly defaultCommandTimeout: number;
 
     private readonly requestChannel: string;
     private readonly responseChannel: string;
@@ -118,7 +124,7 @@ export default class CommandService {
         opts: Partial<CommandServiceOptions> = {}
     ) {
         this.wsServer = wsServer;
-        this.requestsTimeout = opts.requestsTimeout || 10000;
+        this.defaultCommandTimeout = opts.defaultCommandTimeout || 10000;
 
         const prefix = opts.key || 'jitsi-commands';
 
@@ -328,6 +334,8 @@ export default class CommandService {
                 }
 
                 // if socket is connected, send command and wait for the response
+                const timeoutValue = this.getTimeoutValue(command);
+
                 socket.emit(
                     'command',
                     command,
@@ -342,14 +350,25 @@ export default class CommandService {
                                 + `${socket.id}, command ${JSON.stringify(command)}`);
                             reject({
                                 name: ErrorType.TIMEOUT,
-                                message: `Timeout while sending local command, after ${this.requestsTimeout} ms`
+                                message: `Timeout while sending local command, after ${timeoutValue} ms`
                             });
                         },
-                        this.requestsTimeout
+                        timeoutValue
                     )
                 );
             }
         );
+    }
+
+    /**
+     * Get the request timeout value taking into consideration
+     * whether there is a custom timeout on the command
+     * @param command
+     * @private
+     */
+    private getTimeoutValue(command:Command): number {
+        return command.options && command.options.commandTimeoutMs
+            ? command.options.commandTimeoutMs : this.defaultCommandTimeout;
     }
 
     /**
@@ -402,15 +421,16 @@ export default class CommandService {
                     resolve: (value?: CommandResponse | PromiseLike<CommandResponse>) => void,
                     reject: (reason?: unknown) => void
             ) => {
+                const timeoutValue = this.getTimeoutValue(command);
                 const timeout = setTimeout(() => {
                     if (this.requests.has(requestId)) {
                         reject({
                             name: ErrorType.TIMEOUT,
-                            message: `Timeout while sending remote command, after ${this.requestsTimeout} ms`
+                            message: `Timeout while sending remote command, after ${timeoutValue} ms`
                         });
                         this.requests.delete(requestId);
                     }
-                }, this.requestsTimeout);
+                }, timeoutValue);
 
                 this.requests.set(requestId, {
                     type: RequestType.REMOTE_COMMAND,

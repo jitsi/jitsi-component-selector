@@ -256,11 +256,8 @@ export default class SessionsHandler {
         if (responsePayload === null) {
             res.status(404);
             res.send();
-        } else if (responsePayload.hasOwnProperty('errorKey')) {
-            res.status(400);
-            res.send(responsePayload);
         } else {
-            res.status(200);
+            res.status(202);
             res.send(responsePayload);
         }
     }

@@ -32,7 +32,9 @@ export interface ComponentInfo {
 export interface ComponentServiceOptions {
     componentRepository: ComponentRepository,
     commandService: CommandService,
-    componentRequestMapper: ComponentRequestMapper
+    componentRequestMapper: ComponentRequestMapper,
+    commandTimeoutMap: { [id: string]: number };
+    componentRequestTimeoutMap: { [id: string]: number };
 }
 
 /**
@@ -43,6 +45,8 @@ export default class ComponentService {
     private componentRepository: ComponentRepository;
     private commandService: CommandService;
     private componentRequestMapper: ComponentRequestMapper;
+    private commandTimeoutMap: { [id: string]: number };
+    private componentRequestTimeoutMap: { [id: string]: number };
 
     /**
      * Constructor
@@ -52,6 +56,8 @@ export default class ComponentService {
         this.componentRepository = options.componentRepository;
         this.commandService = options.commandService;
         this.componentRequestMapper = options.componentRequestMapper;
+        this.commandTimeoutMap = options.commandTimeoutMap;
+        this.componentRequestTimeoutMap = options.componentRequestTimeoutMap;
     }
 
     /**
@@ -72,6 +78,10 @@ export default class ComponentService {
         const componentCommand = <Command>{
             cmdId: ComponentService.generateCommandId(sessionId),
             type: CommandType.START,
+            options: {
+                commandTimeoutMs: this.commandTimeoutMap[CommandType.START.toLowerCase()],
+                componentRequestTimeoutMs: this.componentRequestTimeoutMap[CommandType.START.toLowerCase()]
+            },
             payload: {
                 componentKey,
                 componentRequest: {}
@@ -111,6 +121,10 @@ export default class ComponentService {
         const componentCommand = <Command>{
             cmdId: ComponentService.generateCommandId(sessionId),
             type: CommandType.STOP,
+            options: {
+                commandTimeoutMs: this.commandTimeoutMap[CommandType.STOP.toLowerCase()],
+                componentRequestTimeoutMs: this.componentRequestTimeoutMap[CommandType.STOP.toLowerCase()]
+            },
             payload: {
                 componentKey
             }
