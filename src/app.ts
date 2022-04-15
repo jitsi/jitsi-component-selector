@@ -144,6 +144,7 @@ const componentService = new ComponentService({ componentRepository,
 const selectionService = new SelectionService({ componentRepository,
     candidateTTLSec: config.CandidateTTLSec });
 const sessionsService = new SessionsService({ sessionRepository,
+    sessionTracker,
     selectionService,
     componentService });
 
