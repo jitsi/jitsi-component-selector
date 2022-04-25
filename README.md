@@ -1,6 +1,34 @@
 # jitsi-component-selector
 Selector Service for Jitsi components
 
+## Build
+---
+**NOTE**
+Node.js >= 16 and npm >= 8 are required.
+---
+
+```
+npm install
+npm run build
+```
+
+## Start
+First make sure you have redis running next to the selector (by default connection is to 127.0.0.1:6379).
+ * Macosx
+    ```
+    brew install redis
+    brew services start redis
+   ```
+ * Linux (Debian/Ubuntu)
+   ```
+      apt install redis
+   ```
+Then start the node process.
+```
+npm run start
+```
+
+
 ## Starting a Session on a Component
 
 ### Start a Jibri Session
