@@ -106,3 +106,4 @@ dist
 # custom
 scripts/docker-build.sh
 .idea/
+bundle
