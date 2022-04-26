@@ -1,0 +1,8 @@
+The Debian Package jitsi-component-selector
+----------------------------
+
+Component selector used by jicofo and external sevices
+  to use components such as jibri, jigasi and sip-jibri to enter meetings
+  and be used by the participants.
+
+ -- Damyan Minkov <dev@jitsi.org>  Mon, 25 Apr 2022 20:11:01 +0000

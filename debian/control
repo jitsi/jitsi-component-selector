@@ -1,0 +1,15 @@
+Source: jitsi-component-selector
+Section: net
+Priority: extra
+Maintainer: Jitsi Team <dev@jitsi.org>
+Build-Depends: debhelper-compat (= 12), nodejs
+Standards-Version: 4.4.1
+Homepage: https://jitsi.org/meet
+
+Package: jitsi-component-selector
+Architecture: all
+Depends: ${misc:Depends}, redis, nodejs
+Description: Component selector used by jicofo and external sevices
+  to use components such as jibri, jigasi and sip-jibri to enter meetings
+  and be used by the participants.
+

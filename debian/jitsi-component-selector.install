@@ -1,0 +1,3 @@
+bundle/app.js   usr/share/jitsi-component-selector/
+src/lua         usr/share/jitsi-component-selector/src/
+env             etc/jitsi/selector
