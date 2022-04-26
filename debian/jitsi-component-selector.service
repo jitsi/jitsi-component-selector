@@ -1,0 +1,16 @@
+[Unit]
+Description=jitsi component selector System Service
+
+[Service]
+WorkingDirectory=/usr/share/jitsi-component-selector
+EnvironmentFile=/etc/jitsi/selector/env
+ExecStart=/usr/bin/node app.js
+StandardOutput=append:/var/log/jitsi/selector.log
+StandardError=append:/var/log/jitsi/selector.log
+Type=simple
+User=jitsi-selector
+Group=jitsi
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
