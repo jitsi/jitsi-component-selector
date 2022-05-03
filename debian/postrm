@@ -27,9 +27,7 @@ case "$1" in
         fi
 
         # clear logs
-        if [ -d "/var/log/jitsi" ]; then
-            rm -rf "/var/log/jitsi"
-        fi
+        rm -f /var/log/jitsi/selector.log
 
         rm -f /etc/jitsi/selector/env
     ;;
