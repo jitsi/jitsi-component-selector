@@ -2,7 +2,7 @@ Source: jitsi-component-selector
 Section: net
 Priority: extra
 Maintainer: Jitsi Team <dev@jitsi.org>
-Build-Depends: debhelper-compat (= 12), nodejs
+Build-Depends: debhelper (>= 11), nodejs
 Standards-Version: 4.4.1
 Homepage: https://jitsi.org/meet
 
