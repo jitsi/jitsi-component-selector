@@ -93,6 +93,7 @@ export class SelectorAuthorization {
         this.authorize(req, res, next, this.protectedApi, this.systemJwtClaims);
     }
 
+    /* eslint-disable max-params */
     /**
      * Express-jwt authorization of tokens, taking into consideration the expected jwtClaims.
      * The public key is retrieved from the pre-configured callback associated to the issuer.
@@ -103,7 +104,13 @@ export class SelectorAuthorization {
      * @param jwtClaims
      * @private
      */
-    private authorize(req: express.Request, res: express.Response, next: express.NextFunction, isProtected: boolean, jwtClaims: JwtClaims) {
+    private authorize(
+      req: express.Request,
+      res: express.Response,
+      next: express.NextFunction,
+      isProtected: boolean,
+      jwtClaims: JwtClaims,
+    ) {
         try {
             jwt({
                 secret: this.asapFetcher.pubKeyCallback,
