@@ -90,10 +90,16 @@ const sessionTracker = new SessionTracker({
     sessionRepository
 });
 
+const signalJwtClaims = {
+    asapJwtAcceptedAud: config.SignalAsapJwtAcceptedAud,
+    asapJwtAcceptedHookIss: config.SignalAsapJwtAcceptedHookIss
+}
+
 const systemJwtClaims = {
     asapJwtAcceptedAud: config.SystemAsapJwtAcceptedAud,
     asapJwtAcceptedHookIss: config.SystemAsapJwtAcceptedHookIss
 }
+
 const jitsiJwtClaims = {
     asapJwtAcceptedAud: config.JitsiAsapJwtAcceptedAud,
     asapJwtAcceptedHookIss: config.JitsiAsapJwtAcceptedHookIss
@@ -207,6 +213,12 @@ if (config.ProtectedApi) {
     logger.debug('Starting in protected api mode');
 } else {
     logger.warn('Starting in unprotected api mode');
+}
+
+if (config.ProtectedSignalApi) {
+    logger.debug('Starting in protected signal api mode');
+} else {
+    logger.warn('Starting in unprotected signal api mode');
 }
 
 httpServer.listen(config.HTTPServerPort, () => {
