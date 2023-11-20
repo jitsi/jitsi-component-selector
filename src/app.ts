@@ -108,12 +108,15 @@ const jitsiJwtClaims = {
 const selectorAuthorization = new SelectorAuthorization({
     asapFetcher,
     protectedApi: config.ProtectedApi,
+    protectedSignalApi: config.ProtectedSignalApi,
+    signalJwtClaims,
     systemJwtClaims,
     jitsiJwtClaims
 })
 
 const selectorPermissions = new SelectorPermissions({
     protectedApi: config.ProtectedApi,
+    protectedSignalApi: config.ProtectedSignalApi,
     jitsiJigasiFeature: config.JitsiJigasiFeature,
     jitsiSipJibriFeature: config.JitsiSipJibriFeature
 });

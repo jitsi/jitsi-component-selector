@@ -19,6 +19,8 @@ export interface JwtClaims {
 export interface TokenAuthorizationOptions {
     asapFetcher: ASAPPubKeyFetcher,
     protectedApi: boolean,
+    protectedSignalApi: boolean,
+    signalJwtClaims: JwtClaims,
     systemJwtClaims: JwtClaims,
     jitsiJwtClaims: JwtClaims
 }
@@ -29,6 +31,8 @@ export interface TokenAuthorizationOptions {
 export class SelectorAuthorization {
     private asapFetcher: ASAPPubKeyFetcher;
     private readonly protectedApi: boolean;
+    private readonly protectedSignalApi: boolean;
+    private readonly signalJwtClaims: JwtClaims;
     private readonly systemJwtClaims: JwtClaims;
     private readonly jitsiJwtClaims: JwtClaims;
 
@@ -39,8 +43,10 @@ export class SelectorAuthorization {
     constructor(options: TokenAuthorizationOptions) {
         this.asapFetcher = options.asapFetcher;
         this.protectedApi = options.protectedApi;
-        this.systemJwtClaims = options.systemJwtClaims;
+        this.protectedSignalApi = options.protectedSignalApi;
         this.jitsiJwtClaims = options.jitsiJwtClaims;
+        this.signalJwtClaims = options.signalJwtClaims;
+        this.systemJwtClaims = options.systemJwtClaims;
         this.jitsiAuthMiddleware = this.jitsiAuthMiddleware.bind(this);
         this.signalAuthMiddleware = this.signalAuthMiddleware.bind(this);
         this.systemAuthMiddleware = this.systemAuthMiddleware.bind(this);
