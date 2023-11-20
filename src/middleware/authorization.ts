@@ -119,7 +119,7 @@ export class SelectorAuthorization {
                 algorithms: [ 'RS256' ]
             })
                 .unless(() => {
-                    if (!this.isProtected) {
+                    if (!isProtected) {
                         return true;
                     }
 
