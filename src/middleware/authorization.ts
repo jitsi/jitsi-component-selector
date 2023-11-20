@@ -64,7 +64,7 @@ export class SelectorAuthorization {
         if (req.context) {
             req.context.logger.debug('Trying jitsi authorization');
         }
-        this.authorize(req, res, next, this.jitsiJwtClaims);
+        this.authorize(req, res, next, this.protectedApi, this.jitsiJwtClaims);
     }
 
     /**
@@ -77,10 +77,7 @@ export class SelectorAuthorization {
         if (req.context) {
             req.context.logger.debug('Trying signal authorization');
         }
-
-        // TODO implement authorization
-        // next(new UnauthorizedError('revoked_token', { message: 'test error message' }));
-        next();
+        this.authorize(req, res, next, this.protectedSignalApi, this.signalJwtClaims);
     }
 
     /**
@@ -93,7 +90,7 @@ export class SelectorAuthorization {
         if (req.context) {
             req.context.logger.info('Trying system authorization');
         }
-        this.authorize(req, res, next, this.systemJwtClaims);
+        this.authorize(req, res, next, this.protectedApi, this.systemJwtClaims);
     }
 
     /**
@@ -102,10 +99,11 @@ export class SelectorAuthorization {
      * @param req
      * @param res
      * @param next
+     * @param isProtected
      * @param jwtClaims
      * @private
      */
-    private authorize(req: express.Request, res: express.Response, next: express.NextFunction, jwtClaims: JwtClaims) {
+    private authorize(req: express.Request, res: express.Response, next: express.NextFunction, isProtected: boolean, jwtClaims: JwtClaims) {
         try {
             jwt({
                 secret: this.asapFetcher.pubKeyCallback,
@@ -114,7 +112,7 @@ export class SelectorAuthorization {
                 algorithms: [ 'RS256' ]
             })
                 .unless(() => {
-                    if (!this.protectedApi) {
+                    if (!this.isProtected) {
                         return true;
                     }
 
