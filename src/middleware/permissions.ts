@@ -3,6 +3,7 @@ import { UnauthorizedError } from 'express-jwt';
 
 export interface SelectorPermissionsOptions {
     protectedApi: boolean,
+    protectedSignalApi: boolean,
     jitsiSipJibriFeature: string,
     jitsiJigasiFeature: string
 }
@@ -12,6 +13,7 @@ export interface SelectorPermissionsOptions {
  */
 export class SelectorPermissions {
     private readonly protectedApi: boolean;
+    private readonly protectedSignalApi: boolean;
     private readonly featureMap: {[id: string]: string};
     private readonly jitsiSipJibriFeature: string;
     private readonly jitsiJigasiFeature: string;
@@ -22,6 +24,7 @@ export class SelectorPermissions {
      */
     constructor(options: SelectorPermissionsOptions) {
         this.protectedApi = options.protectedApi;
+        this.protectedSignalApi = options.protectedSignalApi;
         this.featureMap = {};
         this.jitsiSipJibriFeature = options.jitsiSipJibriFeature;
         this.jitsiJigasiFeature = options.jitsiJigasiFeature;
@@ -96,7 +99,7 @@ export class SelectorPermissions {
      * @param next
      */
     public signalStartPermissions(req: express.Request, res: express.Response, next: express.NextFunction) {
-        if (!this.protectedApi) {
+        if (!this.protectedSignalApi) {
             return next();
         }
 
@@ -111,7 +114,7 @@ export class SelectorPermissions {
      * @param next
      */
     public signalStopPermissions(req: express.Request, res: express.Response, next: express.NextFunction) {
-        if (!this.protectedApi) {
+        if (!this.protectedSignalApi) {
             return next();
         }
 
