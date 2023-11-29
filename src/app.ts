@@ -72,6 +72,10 @@ for (const issuer of config.SystemAsapJwtAcceptedHookIss.values()) {
     issToBaseUrlMapping.set(issuer, config.SystemAsapBaseUrlMappings as AsapBaseUrlMapping[]);
 }
 
+for (const issuer of config.SignalAsapJwtAcceptedHookIss.values()) {
+    issToBaseUrlMapping.set(issuer, config.SignalAsapBaseUrlMappings as AsapBaseUrlMapping[]);
+}
+
 for (const issuer of config.JitsiAsapJwtAcceptedHookIss.values()) {
     issToBaseUrlMapping.set(issuer, config.JitsiAsapBaseUrlMappings as AsapBaseUrlMapping[]);
 }
