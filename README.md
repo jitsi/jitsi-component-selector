@@ -29,6 +29,26 @@ npm run start
 ```
 
 
+## Component authentication
+
+Components connect to the selector through a sidecar, over a Socket.IO connection.
+When `PROTECTED_API` is enabled, the sidecar has to present a system JWT in the Socket.IO `auth.token`,
+signed by one of the `SYSTEM_ASAP_JWT_ACCEPTED_HOOK_ISS` issuers, for the `SYSTEM_ASAP_JWT_AUD` audience.
+
+The verified token is bound to exactly one component identity:
+
+* if the token carries the componentKey claim (`SYSTEM_ASAP_JWT_COMPONENT_KEY_CLAIM`, `sub` by default),
+  the socket is bound to that componentKey and the `componentKey` from the handshake query, if present, must match it,
+  otherwise the connection is rejected;
+* if the token has no such claim and `WS_REQUIRE_COMPONENT_KEY_CLAIM` is `true`, the connection is rejected;
+* if the token has no such claim and `WS_REQUIRE_COMPONENT_KEY_CLAIM` is `false` (the default, for backwards
+  compatibility), the socket is bound to the `componentKey` from the handshake query.
+
+Everything received on the socket is validated against the bound identity: status reports and session reports
+for a different component are ignored and command responses are attributed to the bound component.
+To fully prevent a component from impersonating another one, issue each sidecar a token with the componentKey
+claim set to its own `componentKey` and enable `WS_REQUIRE_COMPONENT_KEY_CLAIM`.
+
 ## Starting a Session on a Component
 
 ### Start a Jibri Session

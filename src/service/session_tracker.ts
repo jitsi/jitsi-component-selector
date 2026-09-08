@@ -62,15 +62,30 @@ export class SessionTracker {
      * Track status updates for a (recording, dial-out etc) session
      * @param ctx request context
      * @param report
+     * @param componentKey the authenticated identity of the component sending the report, if any.
+     * When present, only the component which owns the session is allowed to update it.
      */
-    async track(ctx: Context, report: SessionReport): Promise<void> {
+    async track(ctx: Context, report: SessionReport, componentKey?: string): Promise<void> {
         ctx.logger.debug(`Received session report ${JSON.stringify(report)}`);
+
+        if (!report || !report.sessionId) {
+            ctx.logger.info('Session report has no session id, ignoring updates');
+
+            return;
+        }
 
         const session: Session = await this.sessionRepository.getSession(ctx, report.sessionId);
 
         if (!session) {
             ctx.logger.info(`No session was found with this id ${report.sessionId
             } ,ignoring updates`);
+
+            return;
+        }
+
+        if (componentKey && session.componentKey !== componentKey) {
+            ctx.logger.error(`Session ${report.sessionId} belongs to component ${session.componentKey}, `
+                + `ignoring updates sent by component ${componentKey}`);
 
             return;
         }

@@ -1,7 +1,9 @@
 import shortid from 'shortid';
+import { Socket } from 'socket.io';
 import { SocketId } from 'socket.io-adapter';
 
 import { CallLoginParams, CallParams, SipClientParams, SipCallParams } from '../handlers/session_handler';
+import { WsSocketData } from '../middleware/authorization';
 import { Context, generateNewContext } from '../util/context';
 import logger from '../util/logger';
 import WsServer from '../ws_server';
@@ -343,7 +345,7 @@ export default class CommandService {
                         (response: CommandResponse) => {
                             ctx.logger.info(`Got response for local command ${command.type} from socket `
                                 + `${socket.id}, response ${JSON.stringify(response)}`);
-                            resolve(onSuccess(response));
+                            resolve(onSuccess(CommandService.enforceResponseIdentity(ctx, socket, response)));
                         },
                         () => {
                             ctx.logger.error(`Timeout while sending local command ${command.type} to socket `
@@ -358,6 +360,27 @@ export default class CommandService {
                 );
             }
         );
+    }
+
+    /**
+     * Makes sure a command response is attributed to the component identity bound to the socket,
+     * regardless of the componentKey the client put in the response payload
+     * @param ctx
+     * @param socket the socket which sent the response
+     * @param response
+     * @private
+     */
+    private static enforceResponseIdentity(ctx: Context, socket: Socket, response: CommandResponse): CommandResponse {
+        const socketData = socket.data as WsSocketData;
+        const componentKey = socketData ? socketData.componentKey : undefined;
+
+        if (componentKey && response && response.payload && response.payload.componentKey !== componentKey) {
+            ctx.logger.warn(`Response from socket ${socket.id} claims componentKey ${response.payload.componentKey}, `
+                + `overriding it with the authenticated componentKey ${componentKey}`);
+            response.payload.componentKey = componentKey;
+        }
+
+        return response;
     }
 
     /**
