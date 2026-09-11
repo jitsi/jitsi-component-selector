@@ -115,7 +115,9 @@ const selectorAuthorization = new SelectorAuthorization({
     protectedSignalApi: config.ProtectedSignalApi,
     signalJwtClaims,
     systemJwtClaims,
-    jitsiJwtClaims
+    jitsiJwtClaims,
+    systemJwtComponentKeyClaim: config.SystemAsapJwtComponentKeyClaim,
+    wsRequireComponentKeyClaim: config.WsRequireComponentKeyClaim
 })
 
 const selectorPermissions = new SelectorPermissions({
