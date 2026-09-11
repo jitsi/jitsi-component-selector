@@ -1,6 +1,11 @@
 # jitsi-component-selector
 Selector Service for Jitsi components
 
+# ARCHIVED
+IMPORTANT NOTE:
+This repository is no longer being maintained, and is out of scope for the jitsi project at the moment.
+It may be revisited in the future but for now it is being archived.
+
 ## Build
 ---
 **NOTE**
